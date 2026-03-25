@@ -114,6 +114,58 @@ for msg, err := range agent.Query(ctx, "Run echo hello",
 }
 ```
 
+### Tool permissions
+
+``` go
+canUseTool := func(_ context.Context, toolName string, input map[string]any, _ agent.ToolPermissionContext) (agent.PermissionResult, error) {
+	if toolName == "Write" {
+		return &agent.PermissionDeny{Message: "file writes are not allowed"}, nil
+	}
+	return &agent.PermissionAllow{}, nil
+}
+
+for msg, err := range agent.Query(ctx, "Create a file called hello.txt",
+	agent.WithCanUseTool(canUseTool),
+) {
+	// ...
+}
+```
+
+### MCP servers
+
+``` go
+for msg, err := range agent.Query(ctx, "List my GitHub notifications",
+	agent.WithMCPServers(map[string]agent.MCPServerConfig{
+		"github": {
+			Type:    "stdio",
+			Command: "npx",
+			Args:    []string{"-y", "@modelcontextprotocol/server-github"},
+			Env:     map[string]string{"GITHUB_TOKEN": os.Getenv("GITHUB_TOKEN")},
+		},
+	}),
+	agent.WithAllowedTools("mcp__github__*"),
+) {
+	// ...
+}
+```
+
+### Custom agents
+
+``` go
+for msg, err := range agent.Query(ctx, "Analyze this codebase",
+	agent.WithAgents(map[string]*agent.Definition{
+		"reviewer": {
+			Description: "Code review specialist",
+			Prompt:      "You review code for bugs and improvements.",
+			Tools:       []string{"Read", "Glob", "Grep"},
+			Model:       "sonnet",
+		},
+	}),
+) {
+	// ...
+}
+```
+
 ## Prerequisites
 
 - Go 1.23+
