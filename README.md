@@ -117,6 +117,17 @@ for msg, err := range agent.Query(ctx, "Run echo hello",
 ### Tool permissions
 
 ``` go
+// Allow specific tools to be auto-approved
+for msg, err := range agent.Query(ctx, "Read main.go and fix the bug",
+	agent.WithAllowedTools("Read", "Glob", "Grep"),
+	agent.WithDisallowedTools("Bash"),
+) {
+	// ...
+}
+```
+
+``` go
+// Fine-grained control with a permission callback
 canUseTool := func(_ context.Context, toolName string, input map[string]any, _ agent.ToolPermissionContext) (agent.PermissionResult, error) {
 	if toolName == "Write" {
 		return &agent.PermissionDeny{Message: "file writes are not allowed"}, nil
