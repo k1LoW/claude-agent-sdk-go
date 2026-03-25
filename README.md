@@ -1,5 +1,7 @@
 # claude-agent-sdk-go
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/k1LoW/claude-agent-sdk-go.svg)](https://pkg.go.dev/github.com/k1LoW/claude-agent-sdk-go) ![Coverage](https://raw.githubusercontent.com/k1LoW/octocovs/main/badges/k1LoW/claude-agent-sdk-go/coverage.svg) ![Code to Test Ratio](https://raw.githubusercontent.com/k1LoW/octocovs/main/badges/k1LoW/claude-agent-sdk-go/ratio.svg) ![Test Execution Time](https://raw.githubusercontent.com/k1LoW/octocovs/main/badges/k1LoW/claude-agent-sdk-go/time.svg)
+
 `claude-agent-sdk-go` is an **unofficial** Go SDK for [Claude Agent](https://docs.anthropic.com/en/docs/claude-code) (Claude Code).
 
 It communicates with the Claude Code CLI via a subprocess, supporting both one-shot queries and interactive bidirectional sessions.
