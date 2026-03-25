@@ -1,6 +1,6 @@
 # claude-agent-sdk-go
 
-`claude-agent-sdk-go` is a Go SDK for [Claude Agent](https://docs.anthropic.com/en/docs/claude-code) (Claude Code).
+`claude-agent-sdk-go` is an **unofficial** Go SDK for [Claude Agent](https://docs.anthropic.com/en/docs/claude-code) (Claude Code).
 
 It communicates with the Claude Code CLI via a subprocess, supporting both one-shot queries and interactive bidirectional sessions.
 
