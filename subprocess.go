@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // subprocessTransport communicates with the Claude Code CLI via stdin/stdout.
@@ -150,13 +151,12 @@ func (t *subprocessTransport) Close() error {
 	t.writeMu.Unlock()
 
 	if t.cmd != nil && t.cmd.Process != nil {
-		// Wait briefly for graceful shutdown, then kill
 		done := make(chan error, 1)
 		go func() { done <- t.cmd.Wait() }()
 
 		select {
 		case <-done:
-		default:
+		case <-time.After(3 * time.Second):
 			t.cmd.Process.Kill() //nolint:errcheck // Best-effort: process may have already exited.
 			<-done
 		}
