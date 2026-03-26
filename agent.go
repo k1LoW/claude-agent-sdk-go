@@ -45,7 +45,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"iter"
 )
 
@@ -59,11 +58,6 @@ import (
 func Query(ctx context.Context, prompt string, opts ...Option) iter.Seq2[Message, error] {
 	return func(yield func(Message, error) bool) {
 		options := applyOptions(opts)
-
-		// Validate: CanUseTool requires streaming mode (not supported for simple Query)
-		if options.CanUseTool != nil {
-			options.PermissionPromptToolName = "stdio"
-		}
 
 		transport := newSubprocessTransport(options)
 		if err := transport.Connect(ctx); err != nil {
@@ -82,18 +76,7 @@ func Query(ctx context.Context, prompt string, opts ...Option) iter.Seq2[Message
 		}
 
 		// Send the user message
-		userMessage := map[string]any{
-			"type":               "user",
-			"session_id":         "",
-			"message":            map[string]any{"role": "user", "content": prompt},
-			"parent_tool_use_id": nil,
-		}
-		b, err := json.Marshal(userMessage)
-		if err != nil {
-			yield(nil, err)
-			return
-		}
-		if err := transport.Write(string(b) + "\n"); err != nil {
+		if err := cs.sendUserMessage(prompt, ""); err != nil {
 			yield(nil, err)
 			return
 		}

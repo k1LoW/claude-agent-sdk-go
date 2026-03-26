@@ -241,5 +241,8 @@ func applyOptions(opts []Option) *Options {
 	for _, opt := range opts {
 		opt(o)
 	}
+	if o.CanUseTool != nil {
+		o.PermissionPromptToolName = "stdio"
+	}
 	return o
 }

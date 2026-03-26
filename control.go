@@ -502,6 +502,21 @@ func (cs *controlSession) rewindFiles(ctx context.Context, userMessageID string)
 	return err
 }
 
+// sendUserMessage marshals and writes a user message to the transport.
+func (cs *controlSession) sendUserMessage(prompt string, sessionID string) error {
+	msg := map[string]any{
+		"type":               "user",
+		"message":            map[string]any{"role": "user", "content": prompt},
+		"parent_tool_use_id": nil,
+		"session_id":         sessionID,
+	}
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return cs.transport.Write(string(b) + "\n")
+}
+
 // waitForResultAndEndInput waits for the first result then closes stdin.
 func (cs *controlSession) waitForResultAndEndInput() error {
 	needsWait := len(cs.hookCallbacks) > 0 || cs.options.CanUseTool != nil

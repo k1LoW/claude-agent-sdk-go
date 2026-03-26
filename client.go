@@ -50,10 +50,6 @@ func NewClient(opts ...Option) *Client {
 // Connect starts the Claude Code session. It launches the CLI process,
 // initializes the control protocol, and prepares for message exchange.
 func (c *Client) Connect(ctx context.Context) error {
-	if c.options.CanUseTool != nil {
-		c.options.PermissionPromptToolName = "stdio"
-	}
-
 	c.transport = newSubprocessTransport(c.options)
 	if err := c.transport.Connect(ctx); err != nil {
 		return err
@@ -91,18 +87,7 @@ func (c *Client) SendWithSessionID(ctx context.Context, prompt string, sessionID
 	if c.cs == nil {
 		return &CLIConnectionError{SDKError{Message: "not connected; call Connect first"}}
 	}
-
-	msg := map[string]any{
-		"type":               "user",
-		"message":            map[string]any{"role": "user", "content": prompt},
-		"parent_tool_use_id": nil,
-		"session_id":         sessionID,
-	}
-	b, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	return c.transport.Write(string(b) + "\n")
+	return c.cs.sendUserMessage(prompt, sessionID)
 }
 
 // ReceiveResponse returns an iterator over messages until a [ResultMessage]
