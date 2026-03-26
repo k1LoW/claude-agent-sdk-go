@@ -134,8 +134,7 @@ func TestControlSession_RoutesMessages(t *testing.T) {
 			"is_error": false, "num_turns": float64(1), "session_id": "s1"},
 	)
 
-	ctx := context.Background()
-	cs := newControlSession(ctx, transport, &Options{})
+	cs := newControlSession(t.Context(), transport, &Options{})
 	cs.start()
 
 	var messages []Message
@@ -166,8 +165,7 @@ func TestControlSession_SkipsUnknownMessages(t *testing.T) {
 		}},
 	)
 
-	ctx := context.Background()
-	cs := newControlSession(ctx, transport, &Options{})
+	cs := newControlSession(t.Context(), transport, &Options{})
 	cs.start()
 
 	var messages []Message
@@ -186,11 +184,10 @@ func TestControlSession_SkipsUnknownMessages(t *testing.T) {
 func TestControlSession_Initialize(t *testing.T) {
 	transport := newMockTransportWithControlResponse()
 
-	ctx := context.Background()
-	cs := newControlSession(ctx, transport, &Options{})
+	cs := newControlSession(t.Context(), transport, &Options{})
 	cs.start()
 
-	resp, err := cs.initialize(ctx)
+	resp, err := cs.initialize(t.Context())
 	if err != nil {
 		t.Fatalf("initialize error: %v", err)
 	}
@@ -222,11 +219,10 @@ func TestControlSession_InitializeWithHooks(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
-	cs := newControlSession(ctx, transport, options)
+	cs := newControlSession(t.Context(), transport, options)
 	cs.start()
 
-	_, err := cs.initialize(ctx)
+	_, err := cs.initialize(t.Context())
 	if err != nil {
 		t.Fatalf("initialize error: %v", err)
 	}
@@ -287,11 +283,10 @@ func TestControlSession_InitializeWithAgents(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
-	cs := newControlSession(ctx, transport, options)
+	cs := newControlSession(t.Context(), transport, options)
 	cs.start()
 
-	_, err := cs.initialize(ctx)
+	_, err := cs.initialize(t.Context())
 	if err != nil {
 		t.Fatalf("initialize error: %v", err)
 	}
@@ -335,7 +330,7 @@ func TestControlSession_HandleCanUseTool(t *testing.T) {
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
-	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
 
 	// Test deny
 	resp, err := cs.handleCanUseTool(map[string]any{
@@ -392,7 +387,7 @@ func TestControlSession_HandleHookCallback(t *testing.T) {
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   map[string]HookCallback{"hook_0": hook},
 	}
-	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
 
 	resp, err := cs.handleHookCallback(map[string]any{
 		"callback_id": "hook_0",
@@ -430,7 +425,7 @@ func TestControlSession_HandleHookCallback_NotFound(t *testing.T) {
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
-	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
 
 	_, err := cs.handleHookCallback(map[string]any{
 		"callback_id": "nonexistent",
@@ -462,7 +457,7 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
-	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
 
 	resp, err := cs.handleCanUseTool(map[string]any{
 		"tool_name": "Bash",
@@ -502,7 +497,7 @@ func TestControlSession_HandleControlCancelRequest(t *testing.T) {
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
-	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
 
 	// Register a pending request.
 	ch := make(chan controlResult, 1)
@@ -542,7 +537,7 @@ func TestControlSession_HandleControlCancelRequest_NotFound(t *testing.T) {
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
-	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
 
 	// Canceling a non-existent request should not panic.
 	cs.handleControlCancelRequest(map[string]any{
