@@ -111,8 +111,6 @@ type Options struct {
 	// Stderr is called with each line of stderr output from the CLI.
 	Stderr func(string)
 
-	// User sets the OS user for the CLI process.
-	User string
 }
 
 // ThinkingConfig controls extended thinking behavior.
@@ -240,6 +238,9 @@ func applyOptions(opts []Option) *Options {
 	o := &Options{}
 	for _, opt := range opts {
 		opt(o)
+	}
+	if o.CanUseTool != nil {
+		o.PermissionPromptToolName = "stdio"
 	}
 	return o
 }

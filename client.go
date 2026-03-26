@@ -50,10 +50,6 @@ func NewClient(opts ...Option) *Client {
 // Connect starts the Claude Code session. It launches the CLI process,
 // initializes the control protocol, and prepares for message exchange.
 func (c *Client) Connect(ctx context.Context) error {
-	if c.options.CanUseTool != nil {
-		c.options.PermissionPromptToolName = "stdio"
-	}
-
 	c.transport = newSubprocessTransport(c.options)
 	if err := c.transport.Connect(ctx); err != nil {
 		return err
@@ -72,12 +68,15 @@ func (c *Client) Connect(ctx context.Context) error {
 
 // Close terminates the session and releases all resources.
 func (c *Client) Close() error {
+	var err error
 	if c.cs != nil {
-		c.cs.close()
+		err = c.cs.close()
 		c.cs = nil
+	} else if c.transport != nil {
+		err = c.transport.Close()
 	}
 	c.transport = nil
-	return nil
+	return err
 }
 
 // Send sends a text message to Claude.
@@ -90,18 +89,7 @@ func (c *Client) SendWithSessionID(ctx context.Context, prompt string, sessionID
 	if c.cs == nil {
 		return &CLIConnectionError{SDKError{Message: "not connected; call Connect first"}}
 	}
-
-	msg := map[string]any{
-		"type":               "user",
-		"message":            map[string]any{"role": "user", "content": prompt},
-		"parent_tool_use_id": nil,
-		"session_id":         sessionID,
-	}
-	b, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	return c.transport.Write(string(b) + "\n")
+	return c.cs.sendUserMessage(prompt, sessionID)
 }
 
 // ReceiveResponse returns an iterator over messages until a [ResultMessage]
@@ -121,8 +109,8 @@ func (c *Client) ReceiveResponse(ctx context.Context) iter.Seq2[Message, error] 
 				return
 			case msg, ok := <-c.cs.msgCh:
 				if !ok {
-					if c.cs.readErr != nil {
-						yield(nil, c.cs.readErr)
+					if err := c.cs.readError(); err != nil {
+						yield(nil, err)
 					}
 					return
 				}
@@ -154,8 +142,8 @@ func (c *Client) ReceiveMessages(ctx context.Context) iter.Seq2[Message, error] 
 				return
 			case msg, ok := <-c.cs.msgCh:
 				if !ok {
-					if c.cs.readErr != nil {
-						yield(nil, c.cs.readErr)
+					if err := c.cs.readError(); err != nil {
+						yield(nil, err)
 					}
 					return
 				}
@@ -192,12 +180,12 @@ func (c *Client) SetModel(ctx context.Context, model string) error {
 	return c.cs.setModel(ctx, model)
 }
 
-// GetMCPStatus returns the current MCP server connection status.
-func (c *Client) GetMCPStatus(ctx context.Context) (*MCPStatusResponse, error) {
+// MCPStatus returns the current MCP server connection status.
+func (c *Client) MCPStatus(ctx context.Context) (*MCPStatusResponse, error) {
 	if c.cs == nil {
 		return nil, &CLIConnectionError{SDKError{Message: "not connected"}}
 	}
-	raw, err := c.cs.getMCPStatus(ctx)
+	raw, err := c.cs.mcpStatus(ctx)
 	if err != nil {
 		return nil, err
 	}

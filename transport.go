@@ -11,7 +11,7 @@ type Transport interface {
 	Connect(ctx context.Context) error
 
 	// Write sends raw data to the transport (typically JSON + newline).
-	Write(data string) error
+	Write(data []byte) error
 
 	// ReadMessage reads the next JSON message from the transport.
 	// Returns io.EOF when the stream ends.

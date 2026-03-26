@@ -3,12 +3,12 @@ package agent
 import "context"
 
 // Message is the interface implemented by all message types returned from the CLI.
-type Message interface {
+type Message interface { //nostyle:ifacenames // domain type, not a behavioral interface
 	messageType() string
 }
 
 // ContentBlock is the interface implemented by all content block types.
-type ContentBlock interface {
+type ContentBlock interface { //nostyle:ifacenames // domain type, not a behavioral interface
 	blockType() string
 }
 
@@ -259,7 +259,7 @@ type HookMatcher struct {
 // --- Permission Types ---
 
 // PermissionResult is the return value from a tool permission callback.
-type PermissionResult interface {
+type PermissionResult interface { //nostyle:ifacenames // domain type, not a behavioral interface
 	permissionBehavior() string
 }
 
@@ -358,32 +358,32 @@ type Definition struct {
 	MCPServers  []any  // server name (string) or inline config (map)
 }
 
-func (a *Definition) toMap() map[string]any {
+func (d *Definition) toMap() map[string]any {
 	m := map[string]any{
-		"description": a.Description,
-		"prompt":      a.Prompt,
+		"description": d.Description,
+		"prompt":      d.Prompt,
 	}
-	if len(a.Tools) > 0 {
-		m["tools"] = a.Tools
+	if len(d.Tools) > 0 {
+		m["tools"] = d.Tools
 	}
-	if a.Model != "" {
-		m["model"] = a.Model
+	if d.Model != "" {
+		m["model"] = d.Model
 	}
-	if len(a.Skills) > 0 {
-		m["skills"] = a.Skills
+	if len(d.Skills) > 0 {
+		m["skills"] = d.Skills
 	}
-	if a.Memory != "" {
-		m["memory"] = a.Memory
+	if d.Memory != "" {
+		m["memory"] = d.Memory
 	}
-	if len(a.MCPServers) > 0 {
-		m["mcpServers"] = a.MCPServers
+	if len(d.MCPServers) > 0 {
+		m["mcpServers"] = d.MCPServers
 	}
 	return m
 }
 
 // --- MCP Status Types ---
 
-// MCPStatusResponse is returned by Client.GetMCPStatus.
+// MCPStatusResponse is returned by Client.MCPStatus.
 type MCPStatusResponse struct {
 	MCPServers []MCPServerStatus `json:"mcpServers"`
 }

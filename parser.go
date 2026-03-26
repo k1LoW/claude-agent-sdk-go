@@ -201,7 +201,7 @@ func parseRateLimitEvent(data map[string]any) (*RateLimitEvent, error) {
 }
 
 func parseContentBlocks(raw []any) ([]ContentBlock, error) {
-	if raw == nil {
+	if len(raw) == 0 {
 		return nil, nil
 	}
 	blocks := make([]ContentBlock, 0, len(raw))

@@ -10,9 +10,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // subprocessTransport communicates with the Claude Code CLI via stdin/stdout.
@@ -25,8 +27,10 @@ type subprocessTransport struct {
 	decoder *json.Decoder
 	stderr  io.ReadCloser
 
-	writeMu sync.Mutex
-	closed  bool
+	writeMu  sync.Mutex
+	closed   bool
+	waitOnce sync.Once
+	waitErr  error
 }
 
 func newSubprocessTransport(options *Options) *subprocessTransport {
@@ -92,14 +96,14 @@ func (t *subprocessTransport) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (t *subprocessTransport) Write(data string) error {
+func (t *subprocessTransport) Write(data []byte) error {
 	t.writeMu.Lock()
 	defer t.writeMu.Unlock()
 
 	if t.closed || t.stdin == nil {
 		return &CLIConnectionError{SDKError{Message: "transport is closed"}}
 	}
-	_, err := io.WriteString(t.stdin, data)
+	_, err := t.stdin.Write(data)
 	if err != nil {
 		return &CLIConnectionError{SDKError{Message: "failed to write to stdin", Cause: err}}
 	}
@@ -110,8 +114,8 @@ func (t *subprocessTransport) ReadMessage() (map[string]any, error) {
 	var msg map[string]any
 	if err := t.decoder.Decode(&msg); err != nil {
 		if errors.Is(err, io.EOF) {
-			// Check process exit status
-			if waitErr := t.cmd.Wait(); waitErr != nil {
+			// Check process exit status.
+			if waitErr := t.waitProcess(); waitErr != nil {
 				var exitErr *exec.ExitError
 				if errors.As(waitErr, &exitErr) {
 					return nil, &ProcessError{
@@ -150,18 +154,27 @@ func (t *subprocessTransport) Close() error {
 	t.writeMu.Unlock()
 
 	if t.cmd != nil && t.cmd.Process != nil {
-		// Wait briefly for graceful shutdown, then kill
 		done := make(chan error, 1)
-		go func() { done <- t.cmd.Wait() }()
+		go func() { done <- t.waitProcess() }()
 
 		select {
-		case <-done:
-		default:
-			_ = t.cmd.Process.Kill()
-			<-done
+		case err := <-done:
+			return err
+		case <-time.After(3 * time.Second):
+			t.cmd.Process.Kill() //nolint:errcheck // Best-effort: process may have already exited.
+			return <-done
 		}
 	}
 	return nil
+}
+
+func (t *subprocessTransport) waitProcess() error {
+	t.waitOnce.Do(func() {
+		if t.cmd != nil {
+			t.waitErr = t.cmd.Wait()
+		}
+	})
+	return t.waitErr
 }
 
 func (t *subprocessTransport) readStderr() {
@@ -195,14 +208,15 @@ func (t *subprocessTransport) findCLI() (string, error) {
 	}
 
 	// Check common installation locations
-	home, _ := os.UserHomeDir()
-	candidates := []string{
-		filepath.Join(home, ".npm-global", "bin", "claude"),
-		"/usr/local/bin/claude",
-		filepath.Join(home, ".local", "bin", "claude"),
-		filepath.Join(home, "node_modules", ".bin", "claude"),
-		filepath.Join(home, ".yarn", "bin", "claude"),
-		filepath.Join(home, ".claude", "local", "claude"),
+	candidates := []string{"/usr/local/bin/claude"}
+	if home, err := os.UserHomeDir(); err == nil {
+		candidates = append(candidates,
+			filepath.Join(home, ".npm-global", "bin", "claude"),
+			filepath.Join(home, ".local", "bin", "claude"),
+			filepath.Join(home, "node_modules", ".bin", "claude"),
+			filepath.Join(home, ".yarn", "bin", "claude"),
+			filepath.Join(home, ".claude", "local", "claude"),
+		)
 	}
 
 	if runtime.GOOS == "windows" {
@@ -238,7 +252,7 @@ func (t *subprocessTransport) buildArgs() []string {
 	}
 
 	// Tools
-	if o.Tools != nil {
+	if o.Tools != nil { //nostyle:nilslices // nil=use default tools, empty=no tools
 		if len(o.Tools) == 0 {
 			args = append(args, "--tools", "")
 		} else {
@@ -303,17 +317,20 @@ func (t *subprocessTransport) buildArgs() []string {
 		args = append(args, "--fork-session")
 	}
 
-	// Setting sources
-	if o.SettingSources != nil {
+	// Setting sources: nil=omit flag (use CLI default), non-nil=pass value (empty disables all).
+	if o.SettingSources != nil { //nostyle:nilslices
 		args = append(args, "--setting-sources", strings.Join(o.SettingSources, ","))
-	} else {
-		args = append(args, "--setting-sources", "")
 	}
 
-	// Extra args
+	// Extra args (sorted for deterministic output)
 	if o.ExtraArgs != nil {
-		for flag, val := range o.ExtraArgs {
-			if val == nil {
+		flags := make([]string, 0, len(o.ExtraArgs))
+		for flag := range o.ExtraArgs {
+			flags = append(flags, flag)
+		}
+		slices.Sort(flags)
+		for _, flag := range flags {
+			if val := o.ExtraArgs[flag]; val == nil {
 				args = append(args, "--"+flag)
 			} else {
 				args = append(args, "--"+flag, *val)

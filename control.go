@@ -15,7 +15,7 @@ import (
 // It routes control messages, manages hooks and tool permission callbacks,
 // and forwards regular messages to the consumer.
 type controlSession struct {
-	ctx    context.Context
+	ctx    context.Context //nostyle:contexts // used by readLoop/transportReader goroutines; passing via method args is not feasible
 	cancel context.CancelFunc
 
 	transport Transport
@@ -33,8 +33,9 @@ type controlSession struct {
 	firstResultOnce sync.Once
 	firstResultCh   chan struct{}
 
-	readErr error
-	closed  atomic.Bool
+	readErrMu sync.Mutex
+	readErr   error
+	closed    atomic.Bool
 }
 
 type controlResult struct {
@@ -59,7 +60,9 @@ func newControlSession(ctx context.Context, transport Transport, options *Option
 
 // start begins reading messages from the transport in a goroutine.
 func (cs *controlSession) start() {
-	go cs.readLoop()
+	readCh := make(chan readResult, 1)
+	go cs.transportReader(readCh)
+	go cs.readLoop(readCh)
 }
 
 type readResult struct {
@@ -67,41 +70,46 @@ type readResult struct {
 	err error
 }
 
-func (cs *controlSession) readLoop() {
+// transportReader is a single goroutine that continuously reads from the
+// transport and sends results to readCh. It exits when ReadMessage returns
+// an error (including io.EOF) or when the transport is closed.
+func (cs *controlSession) transportReader(readCh chan<- readResult) {
+	defer close(readCh)
+	for {
+		raw, err := cs.transport.ReadMessage()
+		select {
+		case readCh <- readResult{raw, err}:
+		case <-cs.ctx.Done():
+			return
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (cs *controlSession) readLoop(readCh <-chan readResult) {
 	defer close(cs.doneCh)
 	defer close(cs.msgCh)
 
 	for {
-		if cs.closed.Load() {
-			return
-		}
-
-		// Read in a separate goroutine so we can select on context cancellation.
-		ch := make(chan readResult, 1)
-		go func() {
-			raw, err := cs.transport.ReadMessage()
-			ch <- readResult{raw, err}
-		}()
-
 		var rr readResult
+		var ok bool
 		select {
-		case rr = <-ch:
+		case rr, ok = <-readCh:
+			if !ok {
+				return
+			}
 		case <-cs.ctx.Done():
+			cs.signalPendingRequests(cs.ctx.Err())
 			return
 		}
 
 		if rr.err != nil {
 			if !errors.Is(rr.err, io.EOF) {
-				cs.readErr = rr.err
+				cs.setReadErr(rr.err)
 			}
-			// Signal all pending control requests
-			cs.mu.Lock()
-			for id, ch := range cs.pendingRequests {
-				ch <- controlResult{err: fmt.Errorf("transport closed")}
-				delete(cs.pendingRequests, id)
-			}
-			cs.mu.Unlock()
-			cs.firstResultOnce.Do(func() { close(cs.firstResultCh) })
+			cs.signalPendingRequests(fmt.Errorf("transport closed"))
 			return
 		}
 
@@ -115,8 +123,7 @@ func (cs *controlSession) readLoop() {
 			go cs.handleControlRequest(rr.msg)
 
 		case "control_cancel_request":
-			// TODO: implement cancellation support
-			continue
+			cs.handleControlCancelRequest(rr.msg)
 
 		default:
 			if msgType == "result" {
@@ -139,6 +146,24 @@ func (cs *controlSession) readLoop() {
 				return
 			}
 		}
+	}
+}
+
+func (cs *controlSession) handleControlCancelRequest(raw map[string]any) {
+	requestID, _ := raw["request_id"].(string)
+	if requestID == "" {
+		return
+	}
+
+	cs.mu.Lock()
+	ch, ok := cs.pendingRequests[requestID]
+	if ok {
+		delete(cs.pendingRequests, requestID)
+	}
+	cs.mu.Unlock()
+
+	if ok {
+		ch <- controlResult{err: fmt.Errorf("request canceled by CLI")}
 	}
 }
 
@@ -217,8 +242,8 @@ func (cs *controlSession) handleControlRequest(raw map[string]any) {
 	if err != nil {
 		return
 	}
-	if err := cs.transport.Write(string(b) + "\n"); err != nil {
-		cs.readErr = err
+	if err := cs.transport.Write(append(b, '\n')); err != nil {
+		cs.setReadErr(err)
 	}
 }
 
@@ -349,7 +374,7 @@ func (cs *controlSession) sendControlRequest(ctx context.Context, request map[st
 		return nil, err
 	}
 
-	if err := cs.transport.Write(string(b) + "\n"); err != nil {
+	if err := cs.transport.Write(append(b, '\n')); err != nil {
 		cs.mu.Lock()
 		delete(cs.pendingRequests, requestID)
 		cs.mu.Unlock()
@@ -450,8 +475,8 @@ func (cs *controlSession) setModel(ctx context.Context, model string) error {
 	return err
 }
 
-// getMCPStatus gets the current MCP server connection status.
-func (cs *controlSession) getMCPStatus(ctx context.Context) (map[string]any, error) {
+// mcpStatus gets the current MCP server connection status.
+func (cs *controlSession) mcpStatus(ctx context.Context) (map[string]any, error) {
 	return cs.sendControlRequest(ctx, map[string]any{"subtype": "mcp_status"})
 }
 
@@ -492,6 +517,21 @@ func (cs *controlSession) rewindFiles(ctx context.Context, userMessageID string)
 	return err
 }
 
+// sendUserMessage marshals and writes a user message to the transport.
+func (cs *controlSession) sendUserMessage(prompt string, sessionID string) error {
+	msg := map[string]any{
+		"type":               "user",
+		"message":            map[string]any{"role": "user", "content": prompt},
+		"parent_tool_use_id": nil,
+		"session_id":         sessionID,
+	}
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return cs.transport.Write(append(b, '\n'))
+}
+
 // waitForResultAndEndInput waits for the first result then closes stdin.
 func (cs *controlSession) waitForResultAndEndInput() error {
 	needsWait := len(cs.hookCallbacks) > 0 || cs.options.CanUseTool != nil
@@ -506,10 +546,33 @@ func (cs *controlSession) waitForResultAndEndInput() error {
 	return cs.transport.EndInput()
 }
 
+// signalPendingRequests notifies all pending control requests with the given error and closes firstResultCh.
+func (cs *controlSession) signalPendingRequests(err error) {
+	cs.mu.Lock()
+	for id, ch := range cs.pendingRequests {
+		ch <- controlResult{err: err}
+		delete(cs.pendingRequests, id)
+	}
+	cs.mu.Unlock()
+	cs.firstResultOnce.Do(func() { close(cs.firstResultCh) })
+}
+
+func (cs *controlSession) setReadErr(err error) {
+	cs.readErrMu.Lock()
+	cs.readErr = errors.Join(cs.readErr, err)
+	cs.readErrMu.Unlock()
+}
+
+func (cs *controlSession) readError() error {
+	cs.readErrMu.Lock()
+	defer cs.readErrMu.Unlock()
+	return cs.readErr
+}
+
 // close shuts down the control session.
-func (cs *controlSession) close() {
+func (cs *controlSession) close() error {
 	cs.closed.Store(true)
 	cs.cancel()
 	<-cs.doneCh
-	cs.transport.Close()
+	return cs.transport.Close()
 }
