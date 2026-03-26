@@ -227,7 +227,7 @@ func (cs *controlSession) handleControlRequest(raw map[string]any) {
 	if err != nil {
 		return
 	}
-	if err := cs.transport.Write(string(b) + "\n"); err != nil {
+	if err := cs.transport.Write(append(b, '\n')); err != nil {
 		cs.setReadErr(err)
 	}
 }
@@ -359,7 +359,7 @@ func (cs *controlSession) sendControlRequest(ctx context.Context, request map[st
 		return nil, err
 	}
 
-	if err := cs.transport.Write(string(b) + "\n"); err != nil {
+	if err := cs.transport.Write(append(b, '\n')); err != nil {
 		cs.mu.Lock()
 		delete(cs.pendingRequests, requestID)
 		cs.mu.Unlock()
@@ -514,7 +514,7 @@ func (cs *controlSession) sendUserMessage(prompt string, sessionID string) error
 	if err != nil {
 		return err
 	}
-	return cs.transport.Write(string(b) + "\n")
+	return cs.transport.Write(append(b, '\n'))
 }
 
 // waitForResultAndEndInput waits for the first result then closes stdin.

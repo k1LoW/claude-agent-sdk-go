@@ -94,14 +94,14 @@ func (t *subprocessTransport) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (t *subprocessTransport) Write(data string) error {
+func (t *subprocessTransport) Write(data []byte) error {
 	t.writeMu.Lock()
 	defer t.writeMu.Unlock()
 
 	if t.closed || t.stdin == nil {
 		return &CLIConnectionError{SDKError{Message: "transport is closed"}}
 	}
-	_, err := io.WriteString(t.stdin, data)
+	_, err := t.stdin.Write(data)
 	if err != nil {
 		return &CLIConnectionError{SDKError{Message: "failed to write to stdin", Cause: err}}
 	}

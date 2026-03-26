@@ -13,7 +13,7 @@ type mockTransport struct {
 	mu       sync.Mutex
 	messages []map[string]any
 	pos      int
-	writes   []string
+	writes   [][]byte
 	closed   bool
 }
 
@@ -23,7 +23,7 @@ func newMockTransport(messages ...map[string]any) *mockTransport {
 
 func (m *mockTransport) Connect(_ context.Context) error { return nil }
 
-func (m *mockTransport) Write(data string) error {
+func (m *mockTransport) Write(data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.writes = append(m.writes, data)
@@ -56,7 +56,7 @@ type mockTransportWithControlResponse struct {
 	mu       sync.Mutex
 	messages []map[string]any
 	pos      int
-	writes   []string
+	writes   [][]byte
 	pending  chan map[string]any
 }
 
@@ -68,14 +68,14 @@ func newMockTransportWithControlResponse() *mockTransportWithControlResponse {
 
 func (m *mockTransportWithControlResponse) Connect(_ context.Context) error { return nil }
 
-func (m *mockTransportWithControlResponse) Write(data string) error {
+func (m *mockTransportWithControlResponse) Write(data []byte) error {
 	m.mu.Lock()
 	m.writes = append(m.writes, data)
 	m.mu.Unlock()
 
 	// Parse the written data and respond to control requests
 	var msg map[string]any
-	if err := json.Unmarshal([]byte(data), &msg); err != nil {
+	if err := json.Unmarshal(data, &msg); err != nil {
 		return nil
 	}
 
@@ -249,7 +249,7 @@ func TestControlSession_InitializeWithHooks(t *testing.T) {
 	}
 
 	var initReq map[string]any
-	if err := json.Unmarshal([]byte(writes[0]), &initReq); err != nil {
+	if err := json.Unmarshal(writes[0], &initReq); err != nil {
 		t.Fatalf("failed to parse init request: %v", err)
 	}
 
@@ -300,7 +300,7 @@ func TestControlSession_InitializeWithAgents(t *testing.T) {
 	transport.mu.Unlock()
 
 	var initReq map[string]any
-	if err := json.Unmarshal([]byte(writes[0]), &initReq); err != nil {
+	if err := json.Unmarshal(writes[0], &initReq); err != nil {
 		t.Fatalf("failed to parse init request: %v", err)
 	}
 
