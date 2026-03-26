@@ -101,7 +101,7 @@ func Query(ctx context.Context, prompt string, opts ...Option) iter.Seq2[Message
 		// Wait for result and close stdin in background
 		go func() {
 			if err := cs.waitForResultAndEndInput(); err != nil {
-				cs.readErr = err
+				cs.setReadErr(err)
 			}
 		}()
 
@@ -113,8 +113,8 @@ func Query(ctx context.Context, prompt string, opts ...Option) iter.Seq2[Message
 		}
 
 		// If the reader goroutine encountered an error, yield it
-		if cs.readErr != nil {
-			yield(nil, cs.readErr)
+		if err := cs.getReadErr(); err != nil {
+			yield(nil, err)
 		}
 	}
 }

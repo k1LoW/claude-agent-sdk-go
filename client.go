@@ -121,8 +121,8 @@ func (c *Client) ReceiveResponse(ctx context.Context) iter.Seq2[Message, error] 
 				return
 			case msg, ok := <-c.cs.msgCh:
 				if !ok {
-					if c.cs.readErr != nil {
-						yield(nil, c.cs.readErr)
+					if err := c.cs.getReadErr(); err != nil {
+						yield(nil, err)
 					}
 					return
 				}
@@ -154,8 +154,8 @@ func (c *Client) ReceiveMessages(ctx context.Context) iter.Seq2[Message, error] 
 				return
 			case msg, ok := <-c.cs.msgCh:
 				if !ok {
-					if c.cs.readErr != nil {
-						yield(nil, c.cs.readErr)
+					if err := c.cs.getReadErr(); err != nil {
+						yield(nil, err)
 					}
 					return
 				}

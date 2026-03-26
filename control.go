@@ -33,8 +33,9 @@ type controlSession struct {
 	firstResultOnce sync.Once
 	firstResultCh   chan struct{}
 
-	readErr error
-	closed  atomic.Bool
+	readErrMu sync.Mutex
+	readErr   error
+	closed    atomic.Bool
 }
 
 type controlResult struct {
@@ -92,7 +93,7 @@ func (cs *controlSession) readLoop() {
 
 		if rr.err != nil {
 			if !errors.Is(rr.err, io.EOF) {
-				cs.readErr = rr.err
+				cs.setReadErr(rr.err)
 			}
 			// Signal all pending control requests
 			cs.mu.Lock()
@@ -218,7 +219,7 @@ func (cs *controlSession) handleControlRequest(raw map[string]any) {
 		return
 	}
 	if err := cs.transport.Write(string(b) + "\n"); err != nil {
-		cs.readErr = err
+		cs.setReadErr(err)
 	}
 }
 
@@ -504,6 +505,18 @@ func (cs *controlSession) waitForResultAndEndInput() error {
 	}
 
 	return cs.transport.EndInput()
+}
+
+func (cs *controlSession) setReadErr(err error) {
+	cs.readErrMu.Lock()
+	cs.readErr = errors.Join(cs.readErr, err)
+	cs.readErrMu.Unlock()
+}
+
+func (cs *controlSession) getReadErr() error {
+	cs.readErrMu.Lock()
+	defer cs.readErrMu.Unlock()
+	return cs.readErr
 }
 
 // close shuts down the control session.
