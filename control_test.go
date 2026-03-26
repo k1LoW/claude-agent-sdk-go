@@ -136,6 +136,7 @@ func TestControlSession_RoutesMessages(t *testing.T) {
 
 	cs := newControlSession(t.Context(), transport, &Options{})
 	cs.start()
+	t.Cleanup(func() { cs.close() })
 
 	var messages []Message
 	for msg := range cs.msgCh {
@@ -152,8 +153,6 @@ func TestControlSession_RoutesMessages(t *testing.T) {
 	if _, ok := messages[1].(*ResultMessage); !ok {
 		t.Errorf("messages[1]: expected *ResultMessage, got %T", messages[1])
 	}
-
-	cs.close()
 }
 
 func TestControlSession_SkipsUnknownMessages(t *testing.T) {
@@ -167,6 +166,7 @@ func TestControlSession_SkipsUnknownMessages(t *testing.T) {
 
 	cs := newControlSession(t.Context(), transport, &Options{})
 	cs.start()
+	t.Cleanup(func() { cs.close() })
 
 	var messages []Message
 	for msg := range cs.msgCh {
@@ -177,8 +177,6 @@ func TestControlSession_SkipsUnknownMessages(t *testing.T) {
 	if len(messages) != 1 {
 		t.Fatalf("expected 1 message, got %d", len(messages))
 	}
-
-	cs.close()
 }
 
 func TestControlSession_Initialize(t *testing.T) {
@@ -186,6 +184,7 @@ func TestControlSession_Initialize(t *testing.T) {
 
 	cs := newControlSession(t.Context(), transport, &Options{})
 	cs.start()
+	t.Cleanup(func() { cs.close() })
 
 	resp, err := cs.initialize(t.Context())
 	if err != nil {
@@ -198,8 +197,6 @@ func TestControlSession_Initialize(t *testing.T) {
 	if resp["initialized"] != true {
 		t.Errorf("response[initialized] = %v", resp["initialized"])
 	}
-
-	cs.close()
 }
 
 func TestControlSession_InitializeWithHooks(t *testing.T) {
@@ -221,6 +218,7 @@ func TestControlSession_InitializeWithHooks(t *testing.T) {
 
 	cs := newControlSession(t.Context(), transport, options)
 	cs.start()
+	t.Cleanup(func() { cs.close() })
 
 	_, err := cs.initialize(t.Context())
 	if err != nil {
@@ -267,7 +265,6 @@ func TestControlSession_InitializeWithHooks(t *testing.T) {
 	}
 
 	_ = hookCalled // Hook isn't called during init, just registered
-	cs.close()
 }
 
 func TestControlSession_InitializeWithAgents(t *testing.T) {
@@ -285,6 +282,7 @@ func TestControlSession_InitializeWithAgents(t *testing.T) {
 
 	cs := newControlSession(t.Context(), transport, options)
 	cs.start()
+	t.Cleanup(func() { cs.close() })
 
 	_, err := cs.initialize(t.Context())
 	if err != nil {
@@ -313,8 +311,6 @@ func TestControlSession_InitializeWithAgents(t *testing.T) {
 	if reviewer["model"] != "opus" {
 		t.Errorf("reviewer.model = %v", reviewer["model"])
 	}
-
-	cs.close()
 }
 
 func TestControlSession_HandleCanUseTool(t *testing.T) {
@@ -331,6 +327,7 @@ func TestControlSession_HandleCanUseTool(t *testing.T) {
 		hookCallbacks:   make(map[string]HookCallback),
 	}
 	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
 
 	// Test deny
 	resp, err := cs.handleCanUseTool(map[string]any{
@@ -358,8 +355,6 @@ func TestControlSession_HandleCanUseTool(t *testing.T) {
 	if resp["behavior"] != "allow" {
 		t.Errorf("behavior = %v, want allow", resp["behavior"])
 	}
-
-	cs.cancel()
 }
 
 func TestControlSession_HandleHookCallback(t *testing.T) {
@@ -388,6 +383,7 @@ func TestControlSession_HandleHookCallback(t *testing.T) {
 		hookCallbacks:   map[string]HookCallback{"hook_0": hook},
 	}
 	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
 
 	resp, err := cs.handleHookCallback(map[string]any{
 		"callback_id": "hook_0",
@@ -415,8 +411,6 @@ func TestControlSession_HandleHookCallback(t *testing.T) {
 	if hookSpec["permissionDecision"] != "deny" {
 		t.Errorf("permissionDecision = %v", hookSpec["permissionDecision"])
 	}
-
-	cs.cancel()
 }
 
 func TestControlSession_HandleHookCallback_NotFound(t *testing.T) {
@@ -426,6 +420,7 @@ func TestControlSession_HandleHookCallback_NotFound(t *testing.T) {
 		hookCallbacks:   make(map[string]HookCallback),
 	}
 	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
 
 	_, err := cs.handleHookCallback(map[string]any{
 		"callback_id": "nonexistent",
@@ -433,8 +428,6 @@ func TestControlSession_HandleHookCallback_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing callback")
 	}
-
-	cs.cancel()
 }
 
 func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
@@ -458,6 +451,7 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 		hookCallbacks:   make(map[string]HookCallback),
 	}
 	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
 
 	resp, err := cs.handleCanUseTool(map[string]any{
 		"tool_name": "Bash",
@@ -486,8 +480,6 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 	if perms[0]["type"] != "addRules" {
 		t.Errorf("permission type = %v", perms[0]["type"])
 	}
-
-	cs.cancel()
 }
 
 func TestControlSession_HandleControlCancelRequest(t *testing.T) {
@@ -498,6 +490,7 @@ func TestControlSession_HandleControlCancelRequest(t *testing.T) {
 		hookCallbacks:   make(map[string]HookCallback),
 	}
 	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
 
 	// Register a pending request.
 	ch := make(chan controlResult, 1)
@@ -527,8 +520,6 @@ func TestControlSession_HandleControlCancelRequest(t *testing.T) {
 	if exists {
 		t.Error("canceled request should be removed from pendingRequests")
 	}
-
-	cs.cancel()
 }
 
 func TestControlSession_HandleControlCancelRequest_NotFound(t *testing.T) {
@@ -538,12 +529,11 @@ func TestControlSession_HandleControlCancelRequest_NotFound(t *testing.T) {
 		hookCallbacks:   make(map[string]HookCallback),
 	}
 	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
 
 	// Canceling a non-existent request should not panic.
 	cs.handleControlCancelRequest(map[string]any{
 		"type":       "control_cancel_request",
 		"request_id": "nonexistent",
 	})
-
-	cs.cancel()
 }

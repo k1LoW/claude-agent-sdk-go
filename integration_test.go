@@ -32,7 +32,7 @@ func commonOpts(opts ...Option) []Option {
 func TestIntegration_Query_Basic(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var gotAssistant, gotResult bool
 	for msg, err := range Query(ctx, "Reply with exactly: hello", commonOpts()...) {
@@ -57,7 +57,7 @@ func TestIntegration_Query_Basic(t *testing.T) {
 func TestIntegration_Query_SystemPrompt(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var resultText string
 	for msg, err := range Query(ctx, "What is your name?", commonOpts(
@@ -82,7 +82,7 @@ func TestIntegration_Query_SystemPrompt(t *testing.T) {
 func TestIntegration_Query_MaxTurns(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var result *ResultMessage
 	for msg, err := range Query(ctx, "What is 2+2?", commonOpts(
@@ -106,7 +106,7 @@ func TestIntegration_Query_MaxTurns(t *testing.T) {
 func TestIntegration_Query_ResultFields(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var result *ResultMessage
 	for msg, err := range Query(ctx, "Say hello", commonOpts()...) {
@@ -134,7 +134,7 @@ func TestIntegration_Query_ResultFields(t *testing.T) {
 func TestIntegration_Query_ContentBlocks(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var hasText bool
 	for msg, err := range Query(ctx, "Say hello", commonOpts()...) {
@@ -160,7 +160,7 @@ func TestIntegration_Query_ContentBlocks(t *testing.T) {
 func TestIntegration_Query_ToolUse(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var hasToolUse, hasToolResult bool
 	for msg, err := range Query(ctx, "Read the file ./go.mod and tell me the module name", commonOpts(
@@ -198,7 +198,7 @@ func TestIntegration_Query_ToolUse(t *testing.T) {
 func TestIntegration_Query_AllowedTools(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var toolNames []string
 	for msg, err := range Query(ctx, "Read ./go.mod", commonOpts(
@@ -226,7 +226,7 @@ func TestIntegration_Query_AllowedTools(t *testing.T) {
 func TestIntegration_Query_DisallowedTools(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	for msg, err := range Query(ctx, "Run echo hello", commonOpts(
 		WithDisallowedTools("Bash"),
@@ -250,7 +250,7 @@ func TestIntegration_Query_DisallowedTools(t *testing.T) {
 func TestIntegration_Query_Stderr(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var mu sync.Mutex
 	var lines []string
@@ -275,7 +275,7 @@ func TestIntegration_Query_Stderr(t *testing.T) {
 func TestIntegration_Query_Effort(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var gotResult bool
 	for msg, err := range Query(ctx, "Say hi", commonOpts(
@@ -296,7 +296,7 @@ func TestIntegration_Query_Effort(t *testing.T) {
 func TestIntegration_Query_StructuredOutput(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var result *ResultMessage
 	for msg, err := range Query(ctx, "What is 2+2?", commonOpts(
@@ -331,7 +331,7 @@ func TestIntegration_Query_StructuredOutput(t *testing.T) {
 func TestIntegration_Query_ContextCancel(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var gotError bool
 	for _, err := range Query(ctx, "Write a 10000 word essay about the history of computing", commonOpts(
@@ -352,7 +352,7 @@ func TestIntegration_Query_ContextCancel(t *testing.T) {
 func TestIntegration_Query_Hooks_PreToolUse(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var mu sync.Mutex
 	var hookCalled bool
@@ -395,7 +395,7 @@ func TestIntegration_Query_Hooks_PreToolUse(t *testing.T) {
 func TestIntegration_Query_Hooks_BlockTool(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	blockHook := func(_ context.Context, input HookInput, _ string) (HookOutput, error) {
 		deny := false
@@ -447,7 +447,7 @@ func TestIntegration_Query_Hooks_BlockTool(t *testing.T) {
 func TestIntegration_Query_CanUseTool_Allow(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var mu sync.Mutex
 	var calledTools []string
@@ -479,7 +479,7 @@ func TestIntegration_Query_CanUseTool_Allow(t *testing.T) {
 func TestIntegration_Query_CanUseTool_Deny(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	canUseTool := func(_ context.Context, toolName string, _ map[string]any, _ ToolPermissionContext) (PermissionResult, error) {
 		if toolName == "Bash" {
@@ -506,13 +506,13 @@ func TestIntegration_Query_CanUseTool_Deny(t *testing.T) {
 func TestIntegration_Client_BasicConversation(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	client := NewClient(commonOpts()...)
 	if err := client.Connect(ctx); err != nil {
 		t.Fatalf("connect error: %v", err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { client.Close() })
 
 	// First turn
 	if err := client.Send(ctx, "Remember the number 42. Reply with just 'OK'."); err != nil {
@@ -560,13 +560,13 @@ func TestIntegration_Client_BasicConversation(t *testing.T) {
 func TestIntegration_Client_SetModel(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	client := NewClient(commonOpts()...)
 	if err := client.Connect(ctx); err != nil {
 		t.Fatalf("connect error: %v", err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { client.Close() })
 
 	// SetModel should not error.
 	if err := client.SetModel(ctx, "claude-sonnet-4-5-20250514"); err != nil {
@@ -594,13 +594,13 @@ func TestIntegration_Client_SetModel(t *testing.T) {
 func TestIntegration_Client_SetPermissionMode(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	client := NewClient(commonOpts()...)
 	if err := client.Connect(ctx); err != nil {
 		t.Fatalf("connect error: %v", err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { client.Close() })
 
 	if err := client.SetPermissionMode(ctx, "plan"); err != nil {
 		t.Fatalf("SetPermissionMode error: %v", err)
@@ -615,13 +615,13 @@ func TestIntegration_Client_SetPermissionMode(t *testing.T) {
 func TestIntegration_Client_MCPStatus(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	client := NewClient(commonOpts()...)
 	if err := client.Connect(ctx); err != nil {
 		t.Fatalf("connect error: %v", err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { client.Close() })
 
 	status, err := client.MCPStatus(ctx)
 	if err != nil {
@@ -635,7 +635,7 @@ func TestIntegration_Client_MCPStatus(t *testing.T) {
 func TestIntegration_Client_Interrupt(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	client := NewClient(
 		WithPermissionMode("bypassPermissions"),
@@ -644,7 +644,7 @@ func TestIntegration_Client_Interrupt(t *testing.T) {
 	if err := client.Connect(ctx); err != nil {
 		t.Fatalf("connect error: %v", err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { client.Close() })
 
 	// Start a long task.
 	if err := client.Send(ctx, "Write a very long essay about the history of computing. Make it at least 5000 words."); err != nil {
@@ -691,7 +691,7 @@ func TestIntegration_Client_NotConnected(t *testing.T) {
 func TestIntegration_Query_Thinking(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var gotResult bool
 	for msg, err := range Query(ctx, "What is the sum of the first 10 prime numbers?", commonOpts(
@@ -716,7 +716,7 @@ func TestIntegration_Query_Thinking(t *testing.T) {
 func TestIntegration_Query_AppendSystemPrompt(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var resultText string
 	for msg, err := range Query(ctx, "What is your secret code?",
@@ -745,7 +745,7 @@ func TestIntegration_Query_AppendSystemPrompt(t *testing.T) {
 func TestIntegration_Query_CWD(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var resultText string
 	for msg, err := range Query(ctx, "Run pwd and tell me the output",
