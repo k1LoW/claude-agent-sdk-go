@@ -12,6 +12,9 @@ Unofficial Go SDK for Claude Agent (Claude Code). Provides a Go API to interact 
 # Run all tests with coverage
 make test
 
+# Run integration tests (requires claude CLI in PATH)
+make test-integration
+
 # Run a single test
 go test ./... -run TestFunctionName -count=1
 
