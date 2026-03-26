@@ -27,8 +27,10 @@ type subprocessTransport struct {
 	decoder *json.Decoder
 	stderr  io.ReadCloser
 
-	writeMu sync.Mutex
-	closed  bool
+	writeMu  sync.Mutex
+	closed   bool
+	waitOnce sync.Once
+	waitErr  error
 }
 
 func newSubprocessTransport(options *Options) *subprocessTransport {
@@ -112,8 +114,8 @@ func (t *subprocessTransport) ReadMessage() (map[string]any, error) {
 	var msg map[string]any
 	if err := t.decoder.Decode(&msg); err != nil {
 		if errors.Is(err, io.EOF) {
-			// Check process exit status
-			if waitErr := t.cmd.Wait(); waitErr != nil {
+			// Check process exit status.
+			if waitErr := t.waitProcess(); waitErr != nil {
 				var exitErr *exec.ExitError
 				if errors.As(waitErr, &exitErr) {
 					return nil, &ProcessError{
@@ -153,7 +155,7 @@ func (t *subprocessTransport) Close() error {
 
 	if t.cmd != nil && t.cmd.Process != nil {
 		done := make(chan error, 1)
-		go func() { done <- t.cmd.Wait() }()
+		go func() { done <- t.waitProcess() }()
 
 		select {
 		case err := <-done:
@@ -164,6 +166,15 @@ func (t *subprocessTransport) Close() error {
 		}
 	}
 	return nil
+}
+
+func (t *subprocessTransport) waitProcess() error {
+	t.waitOnce.Do(func() {
+		if t.cmd != nil {
+			t.waitErr = t.cmd.Wait()
+		}
+	})
+	return t.waitErr
 }
 
 func (t *subprocessTransport) readStderr() {

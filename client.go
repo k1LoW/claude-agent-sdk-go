@@ -72,6 +72,8 @@ func (c *Client) Close() error {
 	if c.cs != nil {
 		err = c.cs.close()
 		c.cs = nil
+	} else if c.transport != nil {
+		err = c.transport.Close()
 	}
 	c.transport = nil
 	return err

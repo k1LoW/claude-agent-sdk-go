@@ -101,6 +101,7 @@ func (cs *controlSession) readLoop(readCh <-chan readResult) {
 				return
 			}
 		case <-cs.ctx.Done():
+			cs.signalPendingRequests(cs.ctx.Err())
 			return
 		}
 
@@ -108,14 +109,7 @@ func (cs *controlSession) readLoop(readCh <-chan readResult) {
 			if !errors.Is(rr.err, io.EOF) {
 				cs.setReadErr(rr.err)
 			}
-			// Signal all pending control requests
-			cs.mu.Lock()
-			for id, ch := range cs.pendingRequests {
-				ch <- controlResult{err: fmt.Errorf("transport closed")}
-				delete(cs.pendingRequests, id)
-			}
-			cs.mu.Unlock()
-			cs.firstResultOnce.Do(func() { close(cs.firstResultCh) })
+			cs.signalPendingRequests(fmt.Errorf("transport closed"))
 			return
 		}
 
@@ -550,6 +544,17 @@ func (cs *controlSession) waitForResultAndEndInput() error {
 	}
 
 	return cs.transport.EndInput()
+}
+
+// signalPendingRequests notifies all pending control requests with the given error and closes firstResultCh.
+func (cs *controlSession) signalPendingRequests(err error) {
+	cs.mu.Lock()
+	for id, ch := range cs.pendingRequests {
+		ch <- controlResult{err: err}
+		delete(cs.pendingRequests, id)
+	}
+	cs.mu.Unlock()
+	cs.firstResultOnce.Do(func() { close(cs.firstResultCh) })
 }
 
 func (cs *controlSession) setReadErr(err error) {
