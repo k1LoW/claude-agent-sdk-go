@@ -529,9 +529,9 @@ func (cs *controlSession) readError() error {
 }
 
 // close shuts down the control session.
-func (cs *controlSession) close() {
+func (cs *controlSession) close() error {
 	cs.closed.Store(true)
 	cs.cancel()
 	<-cs.doneCh
-	cs.transport.Close()
+	return cs.transport.Close()
 }

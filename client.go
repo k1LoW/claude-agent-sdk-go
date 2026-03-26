@@ -72,12 +72,13 @@ func (c *Client) Connect(ctx context.Context) error {
 
 // Close terminates the session and releases all resources.
 func (c *Client) Close() error {
+	var err error
 	if c.cs != nil {
-		c.cs.close()
+		err = c.cs.close()
 		c.cs = nil
 	}
 	c.transport = nil
-	return nil
+	return err
 }
 
 // Send sends a text message to Claude.
