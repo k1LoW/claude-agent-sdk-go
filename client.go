@@ -121,7 +121,7 @@ func (c *Client) ReceiveResponse(ctx context.Context) iter.Seq2[Message, error] 
 				return
 			case msg, ok := <-c.cs.msgCh:
 				if !ok {
-					if err := c.cs.getReadErr(); err != nil {
+					if err := c.cs.readError(); err != nil {
 						yield(nil, err)
 					}
 					return
@@ -154,7 +154,7 @@ func (c *Client) ReceiveMessages(ctx context.Context) iter.Seq2[Message, error] 
 				return
 			case msg, ok := <-c.cs.msgCh:
 				if !ok {
-					if err := c.cs.getReadErr(); err != nil {
+					if err := c.cs.readError(); err != nil {
 						yield(nil, err)
 					}
 					return
@@ -192,12 +192,12 @@ func (c *Client) SetModel(ctx context.Context, model string) error {
 	return c.cs.setModel(ctx, model)
 }
 
-// GetMCPStatus returns the current MCP server connection status.
-func (c *Client) GetMCPStatus(ctx context.Context) (*MCPStatusResponse, error) {
+// MCPStatus returns the current MCP server connection status.
+func (c *Client) MCPStatus(ctx context.Context) (*MCPStatusResponse, error) {
 	if c.cs == nil {
 		return nil, &CLIConnectionError{SDKError{Message: "not connected"}}
 	}
-	raw, err := c.cs.getMCPStatus(ctx)
+	raw, err := c.cs.mcpStatus(ctx)
 	if err != nil {
 		return nil, err
 	}

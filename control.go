@@ -15,7 +15,7 @@ import (
 // It routes control messages, manages hooks and tool permission callbacks,
 // and forwards regular messages to the consumer.
 type controlSession struct {
-	ctx    context.Context
+	ctx    context.Context //nostyle:contexts // used by readLoop/transportReader goroutines; passing via method args is not feasible
 	cancel context.CancelFunc
 
 	transport Transport
@@ -460,8 +460,8 @@ func (cs *controlSession) setModel(ctx context.Context, model string) error {
 	return err
 }
 
-// getMCPStatus gets the current MCP server connection status.
-func (cs *controlSession) getMCPStatus(ctx context.Context) (map[string]any, error) {
+// mcpStatus gets the current MCP server connection status.
+func (cs *controlSession) mcpStatus(ctx context.Context) (map[string]any, error) {
 	return cs.sendControlRequest(ctx, map[string]any{"subtype": "mcp_status"})
 }
 
@@ -522,7 +522,7 @@ func (cs *controlSession) setReadErr(err error) {
 	cs.readErrMu.Unlock()
 }
 
-func (cs *controlSession) getReadErr() error {
+func (cs *controlSession) readError() error {
 	cs.readErrMu.Lock()
 	defer cs.readErrMu.Unlock()
 	return cs.readErr

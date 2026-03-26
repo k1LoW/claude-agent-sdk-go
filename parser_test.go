@@ -486,8 +486,8 @@ func TestParseContentBlocks_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if blocks != nil {
-		t.Errorf("expected nil, got %v", blocks)
+	if len(blocks) != 0 {
+		t.Errorf("expected empty, got %v", blocks)
 	}
 }
 

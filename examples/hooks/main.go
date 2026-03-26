@@ -39,8 +39,7 @@ func main() {
 			agent.HookPreToolUse: {
 				{Matcher: "Bash", Hooks: []agent.HookCallback{checkBash}},
 			},
-		}),
-	) {
+		})) {
 		if err != nil {
 			log.Fatal(err)
 		}

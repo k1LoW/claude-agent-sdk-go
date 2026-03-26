@@ -157,7 +157,7 @@ func (t *subprocessTransport) Close() error {
 		select {
 		case <-done:
 		default:
-			_ = t.cmd.Process.Kill()
+			t.cmd.Process.Kill() //nolint:errcheck // Best-effort: process may have already exited.
 			<-done
 		}
 	}
@@ -195,7 +195,10 @@ func (t *subprocessTransport) findCLI() (string, error) {
 	}
 
 	// Check common installation locations
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = ""
+	}
 	candidates := []string{
 		filepath.Join(home, ".npm-global", "bin", "claude"),
 		"/usr/local/bin/claude",
@@ -238,7 +241,7 @@ func (t *subprocessTransport) buildArgs() []string {
 	}
 
 	// Tools
-	if o.Tools != nil {
+	if o.Tools != nil { //nostyle:nilslices // nil=use default tools, empty=no tools
 		if len(o.Tools) == 0 {
 			args = append(args, "--tools", "")
 		} else {
@@ -304,7 +307,7 @@ func (t *subprocessTransport) buildArgs() []string {
 	}
 
 	// Setting sources
-	if o.SettingSources != nil {
+	if o.SettingSources != nil { //nostyle:nilslices // nil=use default sources, empty=disable all sources
 		args = append(args, "--setting-sources", strings.Join(o.SettingSources, ","))
 	} else {
 		args = append(args, "--setting-sources", "")

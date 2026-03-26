@@ -11,10 +11,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	client := agent.NewClient(
-		agent.WithSystemPrompt("You are a helpful assistant"),
-		agent.WithMaxTurns(3),
-	)
+	client := agent.NewClient(agent.WithSystemPrompt("You are a helpful assistant"), agent.WithMaxTurns(3))
 	if err := client.Connect(ctx); err != nil {
 		log.Fatal(err)
 	}

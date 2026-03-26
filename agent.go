@@ -113,7 +113,7 @@ func Query(ctx context.Context, prompt string, opts ...Option) iter.Seq2[Message
 		}
 
 		// If the reader goroutine encountered an error, yield it
-		if err := cs.getReadErr(); err != nil {
+		if err := cs.readError(); err != nil {
 			yield(nil, err)
 		}
 	}
