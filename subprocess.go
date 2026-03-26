@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -313,10 +314,15 @@ func (t *subprocessTransport) buildArgs() []string {
 		args = append(args, "--setting-sources", "")
 	}
 
-	// Extra args
+	// Extra args (sorted for deterministic output)
 	if o.ExtraArgs != nil {
-		for flag, val := range o.ExtraArgs {
-			if val == nil {
+		flags := make([]string, 0, len(o.ExtraArgs))
+		for flag := range o.ExtraArgs {
+			flags = append(flags, flag)
+		}
+		slices.Sort(flags)
+		for _, flag := range flags {
+			if val := o.ExtraArgs[flag]; val == nil {
 				args = append(args, "--"+flag)
 			} else {
 				args = append(args, "--"+flag, *val)
