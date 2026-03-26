@@ -125,8 +125,7 @@ func (cs *controlSession) readLoop(readCh <-chan readResult) {
 			go cs.handleControlRequest(rr.msg)
 
 		case "control_cancel_request":
-			// TODO: implement cancellation support
-			continue
+			cs.handleControlCancelRequest(rr.msg)
 
 		default:
 			if msgType == "result" {
@@ -149,6 +148,24 @@ func (cs *controlSession) readLoop(readCh <-chan readResult) {
 				return
 			}
 		}
+	}
+}
+
+func (cs *controlSession) handleControlCancelRequest(raw map[string]any) {
+	requestID, _ := raw["request_id"].(string)
+	if requestID == "" {
+		return
+	}
+
+	cs.mu.Lock()
+	ch, ok := cs.pendingRequests[requestID]
+	if ok {
+		delete(cs.pendingRequests, requestID)
+	}
+	cs.mu.Unlock()
+
+	if ok {
+		ch <- controlResult{err: fmt.Errorf("request canceled by CLI")}
 	}
 }
 

@@ -111,8 +111,6 @@ type Options struct {
 	// Stderr is called with each line of stderr output from the CLI.
 	Stderr func(string)
 
-	// User sets the OS user for the CLI process.
-	User string
 }
 
 // ThinkingConfig controls extended thinking behavior.
