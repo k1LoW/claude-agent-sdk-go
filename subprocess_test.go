@@ -213,12 +213,19 @@ func TestBuildArgs_Effort(t *testing.T) {
 func TestBuildArgs_ExtraArgs(t *testing.T) {
 	val := "abc"
 	tr := &subprocessTransport{options: &Options{ExtraArgs: map[string]*string{
-		"debug-to-stderr":     nil,
+		"debug-to-stderr":      nil,
 		"replay-user-messages": &val,
 	}}}
 	args := tr.buildArgs()
 	assertContains(t, args, "--debug-to-stderr")
 	assertContains(t, args, "--replay-user-messages", "abc")
+
+	// Verify deterministic ordering (lexicographic).
+	idxDebug := indexOf(args, "--debug-to-stderr")
+	idxReplay := indexOf(args, "--replay-user-messages")
+	if idxDebug > idxReplay {
+		t.Errorf("extra args not sorted: --debug-to-stderr at %d, --replay-user-messages at %d", idxDebug, idxReplay)
+	}
 }
 
 func TestBuildArgs_OutputFormat_JSONSchema(t *testing.T) {
