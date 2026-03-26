@@ -156,10 +156,11 @@ func (t *subprocessTransport) Close() error {
 		go func() { done <- t.cmd.Wait() }()
 
 		select {
-		case <-done:
+		case err := <-done:
+			return err
 		case <-time.After(3 * time.Second):
 			t.cmd.Process.Kill() //nolint:errcheck // Best-effort: process may have already exited.
-			<-done
+			return <-done
 		}
 	}
 	return nil
@@ -196,17 +197,15 @@ func (t *subprocessTransport) findCLI() (string, error) {
 	}
 
 	// Check common installation locations
-	home, err := os.UserHomeDir()
-	if err != nil {
-		home = ""
-	}
-	candidates := []string{
-		filepath.Join(home, ".npm-global", "bin", "claude"),
-		"/usr/local/bin/claude",
-		filepath.Join(home, ".local", "bin", "claude"),
-		filepath.Join(home, "node_modules", ".bin", "claude"),
-		filepath.Join(home, ".yarn", "bin", "claude"),
-		filepath.Join(home, ".claude", "local", "claude"),
+	candidates := []string{"/usr/local/bin/claude"}
+	if home, err := os.UserHomeDir(); err == nil {
+		candidates = append(candidates,
+			filepath.Join(home, ".npm-global", "bin", "claude"),
+			filepath.Join(home, ".local", "bin", "claude"),
+			filepath.Join(home, "node_modules", ".bin", "claude"),
+			filepath.Join(home, ".yarn", "bin", "claude"),
+			filepath.Join(home, ".claude", "local", "claude"),
+		)
 	}
 
 	if runtime.GOOS == "windows" {

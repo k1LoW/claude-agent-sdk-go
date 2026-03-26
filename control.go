@@ -77,7 +77,11 @@ func (cs *controlSession) transportReader(readCh chan<- readResult) {
 	defer close(readCh)
 	for {
 		raw, err := cs.transport.ReadMessage()
-		readCh <- readResult{raw, err}
+		select {
+		case readCh <- readResult{raw, err}:
+		case <-cs.ctx.Done():
+			return
+		}
 		if err != nil {
 			return
 		}
