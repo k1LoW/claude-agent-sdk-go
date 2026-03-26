@@ -317,11 +317,9 @@ func (t *subprocessTransport) buildArgs() []string {
 		args = append(args, "--fork-session")
 	}
 
-	// Setting sources
-	if o.SettingSources != nil { //nostyle:nilslices // nil=use default sources, empty=disable all sources
+	// Setting sources: nil=omit flag (use CLI default), non-nil=pass value (empty disables all).
+	if o.SettingSources != nil { //nostyle:nilslices
 		args = append(args, "--setting-sources", strings.Join(o.SettingSources, ","))
-	} else {
-		args = append(args, "--setting-sources", "")
 	}
 
 	// Extra args (sorted for deterministic output)

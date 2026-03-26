@@ -12,8 +12,14 @@ func TestBuildArgs_Defaults(t *testing.T) {
 	assertContains(t, args, "--output-format", "stream-json")
 	assertContains(t, args, "--input-format", "stream-json")
 	assertContains(t, args, "--system-prompt", "")
-	assertContains(t, args, "--setting-sources", "")
 	assertContains(t, args, "--verbose")
+
+	// SettingSources is nil by default, so --setting-sources should be omitted.
+	for _, a := range args {
+		if a == "--setting-sources" {
+			t.Error("found --setting-sources when SettingSources is nil")
+		}
+	}
 }
 
 func TestBuildArgs_SystemPrompt(t *testing.T) {

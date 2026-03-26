@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -490,6 +491,64 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 	if perms[0]["type"] != "addRules" {
 		t.Errorf("permission type = %v", perms[0]["type"])
 	}
+
+	cs.cancel()
+}
+
+func TestControlSession_HandleControlCancelRequest(t *testing.T) {
+	// Directly test handleControlCancelRequest by manually registering a pending request.
+	cs := &controlSession{
+		options:         &Options{},
+		pendingRequests: make(map[string]chan controlResult),
+		hookCallbacks:   make(map[string]HookCallback),
+	}
+	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+
+	// Register a pending request.
+	ch := make(chan controlResult, 1)
+	cs.mu.Lock()
+	cs.pendingRequests["req_1"] = ch
+	cs.mu.Unlock()
+
+	// Cancel it.
+	cs.handleControlCancelRequest(map[string]any{
+		"type":       "control_cancel_request",
+		"request_id": "req_1",
+	})
+
+	// The pending channel should receive an error.
+	result := <-ch
+	if result.err == nil {
+		t.Fatal("expected error from canceled request")
+	}
+	if !strings.Contains(result.err.Error(), "canceled") {
+		t.Errorf("expected cancellation error, got: %v", result.err)
+	}
+
+	// Verify the request was removed from pendingRequests.
+	cs.mu.Lock()
+	_, exists := cs.pendingRequests["req_1"]
+	cs.mu.Unlock()
+	if exists {
+		t.Error("canceled request should be removed from pendingRequests")
+	}
+
+	cs.cancel()
+}
+
+func TestControlSession_HandleControlCancelRequest_NotFound(t *testing.T) {
+	cs := &controlSession{
+		options:         &Options{},
+		pendingRequests: make(map[string]chan controlResult),
+		hookCallbacks:   make(map[string]HookCallback),
+	}
+	cs.ctx, cs.cancel = context.WithCancel(context.Background())
+
+	// Canceling a non-existent request should not panic.
+	cs.handleControlCancelRequest(map[string]any{
+		"type":       "control_cancel_request",
+		"request_id": "nonexistent",
+	})
 
 	cs.cancel()
 }
