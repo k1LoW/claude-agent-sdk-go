@@ -60,7 +60,9 @@ func newControlSession(ctx context.Context, transport Transport, options *Option
 
 // start begins reading messages from the transport in a goroutine.
 func (cs *controlSession) start() {
-	go cs.readLoop()
+	readCh := make(chan readResult, 1)
+	go cs.transportReader(readCh)
+	go cs.readLoop(readCh)
 }
 
 type readResult struct {
@@ -68,25 +70,32 @@ type readResult struct {
 	err error
 }
 
-func (cs *controlSession) readLoop() {
+// transportReader is a single goroutine that continuously reads from the
+// transport and sends results to readCh. It exits when ReadMessage returns
+// an error (including io.EOF) or when the transport is closed.
+func (cs *controlSession) transportReader(readCh chan<- readResult) {
+	defer close(readCh)
+	for {
+		raw, err := cs.transport.ReadMessage()
+		readCh <- readResult{raw, err}
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (cs *controlSession) readLoop(readCh <-chan readResult) {
 	defer close(cs.doneCh)
 	defer close(cs.msgCh)
 
 	for {
-		if cs.closed.Load() {
-			return
-		}
-
-		// Read in a separate goroutine so we can select on context cancellation.
-		ch := make(chan readResult, 1)
-		go func() {
-			raw, err := cs.transport.ReadMessage()
-			ch <- readResult{raw, err}
-		}()
-
 		var rr readResult
+		var ok bool
 		select {
-		case rr = <-ch:
+		case rr, ok = <-readCh:
+			if !ok {
+				return
+			}
 		case <-cs.ctx.Done():
 			return
 		}
