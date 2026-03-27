@@ -254,7 +254,6 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 		input = map[string]any{}
 	}
 
-	// Handle AskUserQuestion via dedicated callback.
 	if toolName == "AskUserQuestion" && cs.options.AnswerUserQuestions != nil {
 		return cs.handleAskUserQuestion(input)
 	}
@@ -306,33 +305,7 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 }
 
 func (cs *controlSession) handleAskUserQuestion(input map[string]any) (map[string]any, error) {
-	questionsRaw, _ := input["questions"].([]any)
-	questions := make([]Question, 0, len(questionsRaw))
-	for _, qr := range questionsRaw {
-		qm, ok := qr.(map[string]any)
-		if !ok {
-			continue
-		}
-		q := Question{
-			Question:    strVal(qm, "question"),
-			Header:      strVal(qm, "header"),
-			MultiSelect: boolVal(qm, "multiSelect"),
-		}
-		if opts, ok := qm["options"].([]any); ok {
-			for _, or := range opts {
-				om, ok := or.(map[string]any)
-				if !ok {
-					continue
-				}
-				q.Options = append(q.Options, QuestionOption{
-					Label:       strVal(om, "label"),
-					Description: strVal(om, "description"),
-					Preview:     strVal(om, "preview"),
-				})
-			}
-		}
-		questions = append(questions, q)
-	}
+	questionsRaw, questions := parseQuestions(input)
 
 	answers, err := cs.options.AnswerUserQuestions(cs.ctx, questions)
 	if err != nil {
