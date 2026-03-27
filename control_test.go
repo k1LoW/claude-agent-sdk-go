@@ -313,7 +313,7 @@ func TestControlSession_InitializeWithAgents(t *testing.T) {
 	}
 }
 
-func TestControlSession_HandleCanUseTool(t *testing.T) {
+func TestControlSession_HandleOnToolUse(t *testing.T) {
 	canUseTool := func(_ context.Context, toolName string, input map[string]any, _ ToolPermissionContext) (PermissionResult, error) {
 		if toolName == "Bash" {
 			return &PermissionDeny{Message: "bash not allowed"}, nil
@@ -322,7 +322,7 @@ func TestControlSession_HandleCanUseTool(t *testing.T) {
 	}
 
 	cs := &controlSession{
-		options:         &Options{CanUseTool: canUseTool},
+		options:         &Options{OnToolUse: canUseTool},
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
@@ -430,7 +430,7 @@ func TestControlSession_HandleHookCallback_NotFound(t *testing.T) {
 	}
 }
 
-func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
+func TestControlSession_OnToolUseWithUpdatedPermissions(t *testing.T) {
 	canUseTool := func(_ context.Context, toolName string, input map[string]any, _ ToolPermissionContext) (PermissionResult, error) {
 		return &PermissionAllow{
 			UpdatedInput: map[string]any{"command": "safe command"},
@@ -446,7 +446,7 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 	}
 
 	cs := &controlSession{
-		options:         &Options{CanUseTool: canUseTool},
+		options:         &Options{OnToolUse: canUseTool},
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
@@ -483,16 +483,12 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 }
 
 func TestControlSession_HandleAskUserQuestion(t *testing.T) {
-	answerFn := func(_ context.Context, questions []Question) (map[string]string, error) {
-		answers := make(map[string]string, len(questions))
-		for _, q := range questions {
-			answers[q.Question] = "blue"
-		}
-		return answers, nil
+	answerFn := func(_ context.Context, _ Question) (string, error) {
+		return "blue", nil
 	}
 
 	cs := &controlSession{
-		options:         &Options{AnswerUserQuestions: answerFn},
+		options:         &Options{OnAskUserQuestion: answerFn},
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
@@ -542,10 +538,10 @@ func TestControlSession_HandleAskUserQuestion(t *testing.T) {
 }
 
 func TestControlSession_HandleAskUserQuestion_DefaultAllow(t *testing.T) {
-	// When only AnswerUserQuestions is set (no CanUseTool), non-AskUserQuestion
+	// When only OnAskUserQuestion is set (no OnToolUse), non-AskUserQuestion
 	// tools should be allowed by default.
 	cs := &controlSession{
-		options:         &Options{AnswerUserQuestions: func(_ context.Context, _ []Question) (map[string]string, error) { return nil, nil }},
+		options:         &Options{OnAskUserQuestion: func(_ context.Context, _ Question) (string, error) { return "", nil }},
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}

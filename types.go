@@ -330,8 +330,8 @@ type ToolPermissionContext struct {
 	Suggestions []PermissionUpdate
 }
 
-// CanUseToolFunc is the callback signature for tool permission decisions.
-type CanUseToolFunc func(ctx context.Context, toolName string, input map[string]any, tctx ToolPermissionContext) (PermissionResult, error)
+// OnToolUseFunc is the callback signature for tool use decisions.
+type OnToolUseFunc func(ctx context.Context, toolName string, input map[string]any, tctx ToolPermissionContext) (PermissionResult, error)
 
 // --- AskUserQuestion Types ---
 
@@ -350,10 +350,11 @@ type QuestionOption struct {
 	Preview     string
 }
 
-// AnswerUserQuestionFunc is the callback signature for answering user questions.
-// It receives the parsed questions and returns a map of question text to answer label(s).
+// OnAskUserQuestionFunc is the callback signature for handling AskUserQuestion tool calls.
+// It receives a single parsed question and returns the selected option label.
 // For multi-select questions, join selected labels with ", ".
-type AnswerUserQuestionFunc func(ctx context.Context, questions []Question) (map[string]string, error)
+// The SDK calls this once per question and builds the answers map internally.
+type OnAskUserQuestionFunc func(ctx context.Context, question Question) (string, error)
 
 // --- MCP Server Config ---
 

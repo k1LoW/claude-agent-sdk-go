@@ -138,7 +138,7 @@ canUseTool := func(_ context.Context, toolName string, input map[string]any, _ a
 }
 
 for msg, err := range agent.Query(ctx, "Create a file called hello.txt",
-	agent.WithCanUseTool(canUseTool),
+	agent.WithOnToolUse(canUseTool),
 ) {
 	// ...
 }
@@ -148,21 +148,18 @@ for msg, err := range agent.Query(ctx, "Create a file called hello.txt",
 
 ``` go
 for msg, err := range agent.Query(ctx, "Help me design a logo",
-	agent.WithAnswerUserQuestions(func(ctx context.Context, questions []agent.Question) (map[string]string, error) {
-		answers := map[string]string{}
-		for _, q := range questions {
-			fmt.Printf("%s\n", q.Question)
-			for i, opt := range q.Options {
-				fmt.Printf("  %d) %s - %s\n", i+1, opt.Label, opt.Description)
-			}
-			fmt.Print("> ")
-			var choice int
-			fmt.Scanln(&choice)
-			if choice >= 1 && choice <= len(q.Options) {
-				answers[q.Question] = q.Options[choice-1].Label
-			}
+	agent.WithOnAskUserQuestion(func(ctx context.Context, q agent.Question) (string, error) {
+		fmt.Printf("%s\n", q.Question)
+		for i, opt := range q.Options {
+			fmt.Printf("  %d) %s - %s\n", i+1, opt.Label, opt.Description)
 		}
-		return answers, nil
+		fmt.Print("> ")
+		var choice int
+		fmt.Scanln(&choice)
+		if choice >= 1 && choice <= len(q.Options) {
+			return q.Options[choice-1].Label, nil
+		}
+		return "", nil
 	}),
 ) {
 	// ...

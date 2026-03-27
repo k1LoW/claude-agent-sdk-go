@@ -80,16 +80,16 @@ type Options struct {
 	// Hooks configures hook callbacks for agent lifecycle events.
 	Hooks map[HookEvent][]HookMatcher
 
-	// CanUseTool is a callback for tool permission decisions.
-	CanUseTool CanUseToolFunc
+	// OnToolUse is a callback for tool use decisions.
+	OnToolUse OnToolUseFunc
 
-	// AnswerUserQuestions is a callback for handling AskUserQuestion tool calls.
+	// OnAskUserQuestion is a callback for handling AskUserQuestion tool calls.
 	// When set, AskUserQuestion inputs are parsed and passed to this callback,
 	// and the answers are returned as updatedInput with behavior "allow".
-	AnswerUserQuestions AnswerUserQuestionFunc
+	OnAskUserQuestion OnAskUserQuestionFunc
 
 	// PermissionPromptToolName sets the permission prompt tool.
-	// Automatically set to "stdio" when CanUseTool or AnswerUserQuestions is provided.
+	// Automatically set to "stdio" when OnToolUse or OnAskUserQuestion is provided.
 	PermissionPromptToolName string
 
 	// Betas enables beta features.
@@ -214,16 +214,16 @@ func WithHooks(hooks map[HookEvent][]HookMatcher) Option {
 	return func(o *Options) { o.Hooks = hooks }
 }
 
-// WithCanUseTool sets the tool permission callback.
-func WithCanUseTool(fn CanUseToolFunc) Option {
-	return func(o *Options) { o.CanUseTool = fn }
+// WithOnToolUse sets the tool use callback.
+func WithOnToolUse(fn OnToolUseFunc) Option {
+	return func(o *Options) { o.OnToolUse = fn }
 }
 
-// WithAnswerUserQuestions sets a callback to handle AskUserQuestion tool calls.
+// WithOnAskUserQuestion sets a callback to handle AskUserQuestion tool calls.
 // The callback receives parsed questions and returns answers. The SDK
 // automatically constructs the updatedInput and allows the tool.
-func WithAnswerUserQuestions(fn AnswerUserQuestionFunc) Option {
-	return func(o *Options) { o.AnswerUserQuestions = fn }
+func WithOnAskUserQuestion(fn OnAskUserQuestionFunc) Option {
+	return func(o *Options) { o.OnAskUserQuestion = fn }
 }
 
 // WithThinking configures extended thinking.
@@ -251,7 +251,7 @@ func applyOptions(opts []Option) *Options {
 	for _, opt := range opts {
 		opt(o)
 	}
-	if o.CanUseTool != nil || o.AnswerUserQuestions != nil {
+	if o.OnToolUse != nil || o.OnAskUserQuestion != nil {
 		o.PermissionPromptToolName = "stdio"
 	}
 	return o

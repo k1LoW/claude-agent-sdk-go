@@ -255,11 +255,11 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 		input = map[string]any{}
 	}
 
-	if toolName == "AskUserQuestion" && cs.options.AnswerUserQuestions != nil {
+	if toolName == "AskUserQuestion" && cs.options.OnAskUserQuestion != nil {
 		return cs.handleAskUserQuestion(input)
 	}
 
-	if cs.options.CanUseTool == nil {
+	if cs.options.OnToolUse == nil {
 		return map[string]any{
 			"behavior":     "allow",
 			"updatedInput": input,
@@ -269,7 +269,7 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 	tctx := ToolPermissionContext{}
 	// TODO: parse permission_suggestions from request
 
-	result, err := cs.options.CanUseTool(cs.ctx, toolName, input, tctx)
+	result, err := cs.options.OnToolUse(cs.ctx, toolName, input, tctx)
 	if err != nil {
 		return nil, err
 	}
@@ -311,9 +311,13 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 func (cs *controlSession) handleAskUserQuestion(input map[string]any) (map[string]any, error) {
 	questionsRaw, questions := parseQuestions(input)
 
-	answers, err := cs.options.AnswerUserQuestions(cs.ctx, questions)
-	if err != nil {
-		return nil, err
+	answers := make(map[string]string, len(questions))
+	for _, q := range questions {
+		answer, err := cs.options.OnAskUserQuestion(cs.ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		answers[q.Question] = answer
 	}
 
 	updatedInput := make(map[string]any, len(input)+1)
@@ -561,7 +565,7 @@ func (cs *controlSession) sendUserMessage(prompt string, sessionID string) error
 
 // waitForResultAndEndInput waits for the first result then closes stdin.
 func (cs *controlSession) waitForResultAndEndInput() error {
-	needsWait := len(cs.hookCallbacks) > 0 || cs.options.CanUseTool != nil || cs.options.AnswerUserQuestions != nil
+	needsWait := len(cs.hookCallbacks) > 0 || cs.options.OnToolUse != nil || cs.options.OnAskUserQuestion != nil
 
 	if needsWait {
 		select {
