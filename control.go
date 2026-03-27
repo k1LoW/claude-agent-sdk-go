@@ -260,10 +260,7 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 	}
 
 	if cs.options.OnToolUse == nil {
-		return map[string]any{
-			"behavior":     "allow",
-			"updatedInput": input,
-		}, nil
+		return nil, fmt.Errorf("onToolUse callback is not provided")
 	}
 
 	tctx := ToolPermissionContext{}

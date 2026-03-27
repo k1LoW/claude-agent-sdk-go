@@ -537,9 +537,9 @@ func TestControlSession_HandleAskUserQuestion(t *testing.T) {
 	}
 }
 
-func TestControlSession_HandleAskUserQuestion_DefaultAllow(t *testing.T) {
+func TestControlSession_HandleAskUserQuestion_OnToolUseNil(t *testing.T) {
 	// When only OnAskUserQuestion is set (no OnToolUse), non-AskUserQuestion
-	// tools should be allowed by default.
+	// tools should return an error.
 	cs := &controlSession{
 		options:         &Options{OnAskUserQuestion: func(_ context.Context, _ Question) (string, error) { return "", nil }},
 		pendingRequests: make(map[string]chan controlResult),
@@ -548,15 +548,12 @@ func TestControlSession_HandleAskUserQuestion_DefaultAllow(t *testing.T) {
 	cs.ctx, cs.cancel = context.WithCancel(t.Context())
 	t.Cleanup(cs.cancel)
 
-	resp, err := cs.handleCanUseTool(map[string]any{
+	_, err := cs.handleCanUseTool(map[string]any{
 		"tool_name": "Bash",
 		"input":     map[string]any{"command": "echo hello"},
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp["behavior"] != "allow" {
-		t.Errorf("behavior = %v, want allow", resp["behavior"])
+	if err == nil {
+		t.Fatal("expected error when OnToolUse is nil")
 	}
 }
 
