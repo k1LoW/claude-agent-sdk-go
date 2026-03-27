@@ -551,8 +551,8 @@ func TestParseQuestions(t *testing.T) {
 	}
 
 	q0 := questions[0]
-	if q0.Question != "Pick a color" {
-		t.Errorf("q0.Question = %q", q0.Question)
+	if q0.Text != "Pick a color" {
+		t.Errorf("q0.Text = %q", q0.Text)
 	}
 	if q0.Header != "Color" {
 		t.Errorf("q0.Header = %q", q0.Header)
@@ -574,8 +574,8 @@ func TestParseQuestions(t *testing.T) {
 	}
 
 	q1 := questions[1]
-	if q1.Question != "Pick a font" {
-		t.Errorf("q1.Question = %q", q1.Question)
+	if q1.Text != "Pick a font" {
+		t.Errorf("q1.Text = %q", q1.Text)
 	}
 	if q1.MultiSelect {
 		t.Error("q1.MultiSelect should be false")

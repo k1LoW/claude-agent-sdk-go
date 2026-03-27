@@ -337,7 +337,7 @@ type OnToolUseFunc func(ctx context.Context, toolName string, input map[string]a
 
 // Question represents a single question in an AskUserQuestion tool call.
 type Question struct {
-	Question    string
+	Text        string
 	Header      string
 	MultiSelect bool
 	Options     []QuestionOption
@@ -351,8 +351,9 @@ type QuestionOption struct {
 }
 
 // OnAskUserQuestionFunc is the callback signature for handling AskUserQuestion tool calls.
-// It receives a single parsed question and returns the selected option label.
-// For multi-select questions, join selected labels with ", ".
+// It receives a single parsed Question and returns the user's answer as a string.
+// If Options is non-empty, return the selected option label (for multi-select, join with ", ").
+// If Options is empty, return the raw user input as-is.
 // The SDK calls this once per question and builds the answers map internally.
 type OnAskUserQuestionFunc func(ctx context.Context, question Question) (string, error)
 

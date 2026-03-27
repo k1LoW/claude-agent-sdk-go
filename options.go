@@ -220,8 +220,9 @@ func WithOnToolUse(fn OnToolUseFunc) Option {
 }
 
 // WithOnAskUserQuestion sets a callback to handle AskUserQuestion tool calls.
-// The callback receives parsed questions and returns answers. The SDK
-// automatically constructs the updatedInput and allows the tool.
+// The callback is invoked once per parsed Question and returns a single
+// answer string. The SDK loops over all questions, constructs the answers
+// map and updatedInput, and allows the tool.
 func WithOnAskUserQuestion(fn OnAskUserQuestionFunc) Option {
 	return func(o *Options) { o.OnAskUserQuestion = fn }
 }

@@ -314,7 +314,7 @@ func (cs *controlSession) handleAskUserQuestion(input map[string]any) (map[strin
 		if err != nil {
 			return nil, err
 		}
-		answers[q.Question] = answer
+		answers[q.Text] = answer
 	}
 
 	updatedInput := make(map[string]any, len(input)+1)

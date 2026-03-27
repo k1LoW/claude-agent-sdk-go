@@ -293,7 +293,7 @@ func parseQuestions(input map[string]any) ([]any, []Question) {
 			continue
 		}
 		q := Question{
-			Question:    strVal(qm, "question"),
+			Text:        strVal(qm, "question"),
 			Header:      strVal(qm, "header"),
 			MultiSelect: boolVal(qm, "multiSelect"),
 		}
