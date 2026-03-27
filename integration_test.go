@@ -501,6 +501,44 @@ func TestIntegration_Query_CanUseTool_Deny(t *testing.T) {
 	// If we get here without hanging, the deny worked correctly.
 }
 
+// --- AnswerUserQuestions ---
+
+func TestIntegration_Query_AnswerUserQuestions(t *testing.T) {
+	skipIfNoCLI(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
+	t.Cleanup(cancel)
+
+	const fixedAnswer = "blue"
+
+	var resultText string
+	for msg, err := range Query(ctx,
+		"Ask me what my favorite color is using the AskUserQuestion tool, then repeat my answer back to me.",
+		WithSystemPrompt("You must use the AskUserQuestion tool to ask the user questions. Never guess the answer."),
+		WithMaxTurns(5),
+		WithAnswerUserQuestions(func(_ context.Context, questions []Question) (map[string]string, error) {
+			answers := make(map[string]string, len(questions))
+			for _, q := range questions {
+				answers[q.Question] = fixedAnswer
+			}
+			return answers, nil
+		}),
+	) {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if m, ok := msg.(*AssistantMessage); ok {
+			for _, block := range m.Content {
+				if tb, ok := block.(*TextBlock); ok {
+					resultText += tb.Text
+				}
+			}
+		}
+	}
+	if !strings.Contains(strings.ToLower(resultText), fixedAnswer) {
+		t.Errorf("expected response to contain %q, got: %q", fixedAnswer, resultText)
+	}
+}
+
 // --- Client (multi-turn) tests ---
 
 func TestIntegration_Client_BasicConversation(t *testing.T) {

@@ -248,14 +248,19 @@ func (cs *controlSession) handleControlRequest(raw map[string]any) {
 }
 
 func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]any, error) {
-	if cs.options.CanUseTool == nil {
-		return nil, fmt.Errorf("canUseTool callback is not provided")
-	}
-
 	toolName, _ := request["tool_name"].(string)
 	input, _ := request["input"].(map[string]any)
 	if input == nil {
 		input = map[string]any{}
+	}
+
+	// Handle AskUserQuestion via dedicated callback.
+	if toolName == "AskUserQuestion" && cs.options.AnswerUserQuestions != nil {
+		return cs.handleAskUserQuestion(input)
+	}
+
+	if cs.options.CanUseTool == nil {
+		return nil, fmt.Errorf("canUseTool callback is not provided")
 	}
 
 	tctx := ToolPermissionContext{}
@@ -298,6 +303,49 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 	default:
 		return nil, fmt.Errorf("unexpected permission result type: %T", result)
 	}
+}
+
+func (cs *controlSession) handleAskUserQuestion(input map[string]any) (map[string]any, error) {
+	questionsRaw, _ := input["questions"].([]any)
+	questions := make([]Question, 0, len(questionsRaw))
+	for _, qr := range questionsRaw {
+		qm, ok := qr.(map[string]any)
+		if !ok {
+			continue
+		}
+		q := Question{
+			Question:    strVal(qm, "question"),
+			Header:      strVal(qm, "header"),
+			MultiSelect: boolVal(qm, "multiSelect"),
+		}
+		if opts, ok := qm["options"].([]any); ok {
+			for _, or := range opts {
+				om, ok := or.(map[string]any)
+				if !ok {
+					continue
+				}
+				q.Options = append(q.Options, QuestionOption{
+					Label:       strVal(om, "label"),
+					Description: strVal(om, "description"),
+					Preview:     strVal(om, "preview"),
+				})
+			}
+		}
+		questions = append(questions, q)
+	}
+
+	answers, err := cs.options.AnswerUserQuestions(cs.ctx, questions)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"behavior": "allow",
+		"updatedInput": map[string]any{
+			"questions": questionsRaw,
+			"answers":   answers,
+		},
+	}, nil
 }
 
 func (cs *controlSession) handleHookCallback(request map[string]any) (map[string]any, error) {
@@ -534,7 +582,7 @@ func (cs *controlSession) sendUserMessage(prompt string, sessionID string) error
 
 // waitForResultAndEndInput waits for the first result then closes stdin.
 func (cs *controlSession) waitForResultAndEndInput() error {
-	needsWait := len(cs.hookCallbacks) > 0 || cs.options.CanUseTool != nil
+	needsWait := len(cs.hookCallbacks) > 0 || cs.options.CanUseTool != nil || cs.options.AnswerUserQuestions != nil
 
 	if needsWait {
 		select {

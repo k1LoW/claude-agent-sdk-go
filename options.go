@@ -83,6 +83,11 @@ type Options struct {
 	// CanUseTool is a callback for tool permission decisions.
 	CanUseTool CanUseToolFunc
 
+	// AnswerUserQuestions is a callback for handling AskUserQuestion tool calls.
+	// When set, AskUserQuestion inputs are parsed and passed to this callback,
+	// and the answers are returned as updatedInput with behavior "allow".
+	AnswerUserQuestions AnswerUserQuestionFunc
+
 	// PermissionPromptToolName sets the permission prompt tool.
 	// Automatically set to "stdio" when CanUseTool is provided.
 	PermissionPromptToolName string
@@ -214,6 +219,13 @@ func WithCanUseTool(fn CanUseToolFunc) Option {
 	return func(o *Options) { o.CanUseTool = fn }
 }
 
+// WithAnswerUserQuestions sets a callback to handle AskUserQuestion tool calls.
+// The callback receives parsed questions and returns answers. The SDK
+// automatically constructs the updatedInput and allows the tool.
+func WithAnswerUserQuestions(fn AnswerUserQuestionFunc) Option {
+	return func(o *Options) { o.AnswerUserQuestions = fn }
+}
+
 // WithThinking configures extended thinking.
 func WithThinking(cfg ThinkingConfig) Option {
 	return func(o *Options) { o.Thinking = &cfg }
@@ -239,7 +251,7 @@ func applyOptions(opts []Option) *Options {
 	for _, opt := range opts {
 		opt(o)
 	}
-	if o.CanUseTool != nil {
+	if o.CanUseTool != nil || o.AnswerUserQuestions != nil {
 		o.PermissionPromptToolName = "stdio"
 	}
 	return o
