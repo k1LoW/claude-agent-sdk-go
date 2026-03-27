@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"sync"
 	"sync/atomic"
 )
@@ -259,7 +260,10 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 	}
 
 	if cs.options.CanUseTool == nil {
-		return nil, fmt.Errorf("canUseTool callback is not provided")
+		return map[string]any{
+			"behavior":     "allow",
+			"updatedInput": input,
+		}, nil
 	}
 
 	tctx := ToolPermissionContext{}
@@ -312,12 +316,14 @@ func (cs *controlSession) handleAskUserQuestion(input map[string]any) (map[strin
 		return nil, err
 	}
 
+	updatedInput := make(map[string]any, len(input)+1)
+	maps.Copy(updatedInput, input)
+	updatedInput["questions"] = questionsRaw
+	updatedInput["answers"] = answers
+
 	return map[string]any{
-		"behavior": "allow",
-		"updatedInput": map[string]any{
-			"questions": questionsRaw,
-			"answers":   answers,
-		},
+		"behavior":     "allow",
+		"updatedInput": updatedInput,
 	}, nil
 }
 

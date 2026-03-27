@@ -156,9 +156,11 @@ for msg, err := range agent.Query(ctx, "Help me design a logo",
 				fmt.Printf("  %d) %s - %s\n", i+1, opt.Label, opt.Description)
 			}
 			fmt.Print("> ")
-			var choice string
+			var choice int
 			fmt.Scanln(&choice)
-			answers[q.Question] = choice
+			if choice >= 1 && choice <= len(q.Options) {
+				answers[q.Question] = q.Options[choice-1].Label
+			}
 		}
 		return answers, nil
 	}),

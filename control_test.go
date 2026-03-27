@@ -482,6 +482,88 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 	}
 }
 
+func TestControlSession_HandleAskUserQuestion(t *testing.T) {
+	answerFn := func(_ context.Context, questions []Question) (map[string]string, error) {
+		answers := make(map[string]string, len(questions))
+		for _, q := range questions {
+			answers[q.Question] = "blue"
+		}
+		return answers, nil
+	}
+
+	cs := &controlSession{
+		options:         &Options{AnswerUserQuestions: answerFn},
+		pendingRequests: make(map[string]chan controlResult),
+		hookCallbacks:   make(map[string]HookCallback),
+	}
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
+
+	resp, err := cs.handleCanUseTool(map[string]any{
+		"tool_name": "AskUserQuestion",
+		"input": map[string]any{
+			"questions": []any{
+				map[string]any{
+					"question": "What is your favorite color?",
+					"header":   "Color",
+					"options": []any{
+						map[string]any{"label": "red", "description": "Red color"},
+						map[string]any{"label": "blue", "description": "Blue color"},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if resp["behavior"] != "allow" {
+		t.Errorf("behavior = %v, want allow", resp["behavior"])
+	}
+
+	updatedInput, ok := resp["updatedInput"].(map[string]any)
+	if !ok {
+		t.Fatal("updatedInput missing")
+	}
+
+	answers, ok := updatedInput["answers"].(map[string]string)
+	if !ok {
+		t.Fatal("answers missing")
+	}
+	if answers["What is your favorite color?"] != "blue" {
+		t.Errorf("answer = %v, want blue", answers["What is your favorite color?"])
+	}
+
+	// Verify original input fields are preserved.
+	if updatedInput["questions"] == nil {
+		t.Error("questions should be preserved in updatedInput")
+	}
+}
+
+func TestControlSession_HandleAskUserQuestion_DefaultAllow(t *testing.T) {
+	// When only AnswerUserQuestions is set (no CanUseTool), non-AskUserQuestion
+	// tools should be allowed by default.
+	cs := &controlSession{
+		options:         &Options{AnswerUserQuestions: func(_ context.Context, _ []Question) (map[string]string, error) { return nil, nil }},
+		pendingRequests: make(map[string]chan controlResult),
+		hookCallbacks:   make(map[string]HookCallback),
+	}
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
+
+	resp, err := cs.handleCanUseTool(map[string]any{
+		"tool_name": "Bash",
+		"input":     map[string]any{"command": "echo hello"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp["behavior"] != "allow" {
+		t.Errorf("behavior = %v, want allow", resp["behavior"])
+	}
+}
+
 func TestControlSession_HandleControlCancelRequest(t *testing.T) {
 	// Directly test handleControlCancelRequest by manually registering a pending request.
 	cs := &controlSession{

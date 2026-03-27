@@ -89,7 +89,7 @@ type Options struct {
 	AnswerUserQuestions AnswerUserQuestionFunc
 
 	// PermissionPromptToolName sets the permission prompt tool.
-	// Automatically set to "stdio" when CanUseTool is provided.
+	// Automatically set to "stdio" when CanUseTool or AnswerUserQuestions is provided.
 	PermissionPromptToolName string
 
 	// Betas enables beta features.
