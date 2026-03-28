@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -510,12 +511,14 @@ func TestIntegration_Query_OnAskUserQuestion(t *testing.T) {
 
 	const fixedAnswer = "blue"
 
+	var callbackCalled atomic.Bool
 	var resultText string
 	for msg, err := range Query(ctx,
 		"Ask me what my favorite color is using the AskUserQuestion tool, then repeat my answer back to me.",
 		WithSystemPrompt("You must use the AskUserQuestion tool to ask the user questions. Never guess the answer."),
 		WithMaxTurns(5),
 		WithOnAskUserQuestion(func(_ context.Context, _ Question) (string, error) {
+			callbackCalled.Store(true)
 			return fixedAnswer, nil
 		}),
 	) {
@@ -529,6 +532,9 @@ func TestIntegration_Query_OnAskUserQuestion(t *testing.T) {
 				}
 			}
 		}
+	}
+	if !callbackCalled.Load() {
+		t.Error("expected OnAskUserQuestion callback to be called")
 	}
 	if !strings.Contains(strings.ToLower(resultText), fixedAnswer) {
 		t.Errorf("expected response to contain %q, got: %q", fixedAnswer, resultText)
