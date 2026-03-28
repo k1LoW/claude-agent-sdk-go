@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -442,9 +443,9 @@ func TestIntegration_Query_Hooks_BlockTool(t *testing.T) {
 	_ = bashUsed
 }
 
-// --- Query with CanUseTool ---
+// --- Query with OnToolUse ---
 
-func TestIntegration_Query_CanUseTool_Allow(t *testing.T) {
+func TestIntegration_Query_OnToolUse_Allow(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	t.Cleanup(cancel)
@@ -461,7 +462,7 @@ func TestIntegration_Query_CanUseTool_Allow(t *testing.T) {
 
 	for msg, err := range Query(ctx, "Read ./go.mod",
 		WithMaxTurns(2),
-		WithCanUseTool(canUseTool),
+		WithOnToolUse(canUseTool),
 	) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -471,12 +472,12 @@ func TestIntegration_Query_CanUseTool_Allow(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	// CanUseTool may not be called if the model doesn't decide to use tools.
+	// OnToolUse may not be called if the model doesn't decide to use tools.
 	// The key assertion is that the query completed without hanging or errors.
-	t.Logf("CanUseTool called for tools: %v", calledTools)
+	t.Logf("OnToolUse called for tools: %v", calledTools)
 }
 
-func TestIntegration_Query_CanUseTool_Deny(t *testing.T) {
+func TestIntegration_Query_OnToolUse_Deny(t *testing.T) {
 	skipIfNoCLI(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	t.Cleanup(cancel)
@@ -491,7 +492,7 @@ func TestIntegration_Query_CanUseTool_Deny(t *testing.T) {
 	for msg, err := range Query(ctx, "Run echo hello",
 		WithPermissionMode("default"),
 		WithMaxTurns(2),
-		WithCanUseTool(canUseTool),
+		WithOnToolUse(canUseTool),
 	) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -499,6 +500,45 @@ func TestIntegration_Query_CanUseTool_Deny(t *testing.T) {
 		_ = msg
 	}
 	// If we get here without hanging, the deny worked correctly.
+}
+
+// --- OnAskUserQuestion ---
+
+func TestIntegration_Query_OnAskUserQuestion(t *testing.T) {
+	skipIfNoCLI(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
+	t.Cleanup(cancel)
+
+	const fixedAnswer = "blue"
+
+	var callbackCalled atomic.Bool
+	var resultText string
+	for msg, err := range Query(ctx,
+		"Ask me what my favorite color is using the AskUserQuestion tool, then repeat my answer back to me.",
+		WithSystemPrompt("You must use the AskUserQuestion tool to ask the user questions. Never guess the answer."),
+		WithMaxTurns(5),
+		WithOnAskUserQuestion(func(_ context.Context, _ Question) (string, error) {
+			callbackCalled.Store(true)
+			return fixedAnswer, nil
+		}),
+	) {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if m, ok := msg.(*AssistantMessage); ok {
+			for _, block := range m.Content {
+				if tb, ok := block.(*TextBlock); ok {
+					resultText += tb.Text
+				}
+			}
+		}
+	}
+	if !callbackCalled.Load() {
+		t.Error("expected OnAskUserQuestion callback to be called")
+	}
+	if !strings.Contains(strings.ToLower(resultText), fixedAnswer) {
+		t.Errorf("expected response to contain %q, got: %q", fixedAnswer, resultText)
+	}
 }
 
 // --- Client (multi-turn) tests ---

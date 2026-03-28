@@ -313,7 +313,7 @@ func TestControlSession_InitializeWithAgents(t *testing.T) {
 	}
 }
 
-func TestControlSession_HandleCanUseTool(t *testing.T) {
+func TestControlSession_HandleOnToolUse(t *testing.T) {
 	canUseTool := func(_ context.Context, toolName string, input map[string]any, _ ToolPermissionContext) (PermissionResult, error) {
 		if toolName == "Bash" {
 			return &PermissionDeny{Message: "bash not allowed"}, nil
@@ -322,7 +322,7 @@ func TestControlSession_HandleCanUseTool(t *testing.T) {
 	}
 
 	cs := &controlSession{
-		options:         &Options{CanUseTool: canUseTool},
+		options:         &Options{OnToolUse: canUseTool},
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
@@ -430,7 +430,7 @@ func TestControlSession_HandleHookCallback_NotFound(t *testing.T) {
 	}
 }
 
-func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
+func TestControlSession_OnToolUseWithUpdatedPermissions(t *testing.T) {
 	canUseTool := func(_ context.Context, toolName string, input map[string]any, _ ToolPermissionContext) (PermissionResult, error) {
 		return &PermissionAllow{
 			UpdatedInput: map[string]any{"command": "safe command"},
@@ -446,7 +446,7 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 	}
 
 	cs := &controlSession{
-		options:         &Options{CanUseTool: canUseTool},
+		options:         &Options{OnToolUse: canUseTool},
 		pendingRequests: make(map[string]chan controlResult),
 		hookCallbacks:   make(map[string]HookCallback),
 	}
@@ -479,6 +479,81 @@ func TestControlSession_CanUseToolWithUpdatedPermissions(t *testing.T) {
 	}
 	if perms[0]["type"] != "addRules" {
 		t.Errorf("permission type = %v", perms[0]["type"])
+	}
+}
+
+func TestControlSession_HandleAskUserQuestion(t *testing.T) {
+	answerFn := func(_ context.Context, _ Question) (string, error) {
+		return "blue", nil
+	}
+
+	cs := &controlSession{
+		options:         &Options{OnAskUserQuestion: answerFn},
+		pendingRequests: make(map[string]chan controlResult),
+		hookCallbacks:   make(map[string]HookCallback),
+	}
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
+
+	resp, err := cs.handleCanUseTool(map[string]any{
+		"tool_name": "AskUserQuestion",
+		"input": map[string]any{
+			"questions": []any{
+				map[string]any{
+					"question": "What is your favorite color?",
+					"header":   "Color",
+					"options": []any{
+						map[string]any{"label": "red", "description": "Red color"},
+						map[string]any{"label": "blue", "description": "Blue color"},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if resp["behavior"] != "allow" {
+		t.Errorf("behavior = %v, want allow", resp["behavior"])
+	}
+
+	updatedInput, ok := resp["updatedInput"].(map[string]any)
+	if !ok {
+		t.Fatal("updatedInput missing")
+	}
+
+	answers, ok := updatedInput["answers"].(map[string]string)
+	if !ok {
+		t.Fatal("answers missing")
+	}
+	if answers["What is your favorite color?"] != "blue" {
+		t.Errorf("answer = %v, want blue", answers["What is your favorite color?"])
+	}
+
+	// Verify original input fields are preserved.
+	if updatedInput["questions"] == nil {
+		t.Error("questions should be preserved in updatedInput")
+	}
+}
+
+func TestControlSession_HandleAskUserQuestion_OnToolUseNil(t *testing.T) {
+	// When only OnAskUserQuestion is set (no OnToolUse), non-AskUserQuestion
+	// tools should return an error.
+	cs := &controlSession{
+		options:         &Options{OnAskUserQuestion: func(_ context.Context, _ Question) (string, error) { return "", nil }},
+		pendingRequests: make(map[string]chan controlResult),
+		hookCallbacks:   make(map[string]HookCallback),
+	}
+	cs.ctx, cs.cancel = context.WithCancel(t.Context())
+	t.Cleanup(cs.cancel)
+
+	_, err := cs.handleCanUseTool(map[string]any{
+		"tool_name": "Bash",
+		"input":     map[string]any{"command": "echo hello"},
+	})
+	if err == nil {
+		t.Fatal("expected error when OnToolUse is nil")
 	}
 }
 

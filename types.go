@@ -330,8 +330,32 @@ type ToolPermissionContext struct {
 	Suggestions []PermissionUpdate
 }
 
-// CanUseToolFunc is the callback signature for tool permission decisions.
-type CanUseToolFunc func(ctx context.Context, toolName string, input map[string]any, tctx ToolPermissionContext) (PermissionResult, error)
+// OnToolUseFunc is the callback signature for tool use decisions.
+type OnToolUseFunc func(ctx context.Context, toolName string, input map[string]any, tctx ToolPermissionContext) (PermissionResult, error)
+
+// --- AskUserQuestion Types ---
+
+// Question represents a single question in an AskUserQuestion tool call.
+type Question struct {
+	Text        string
+	Header      string
+	MultiSelect bool
+	Options     []QuestionOption
+}
+
+// QuestionOption represents a selectable option for a question.
+type QuestionOption struct {
+	Label       string
+	Description string
+	Preview     string
+}
+
+// OnAskUserQuestionFunc is the callback signature for handling AskUserQuestion tool calls.
+// It receives a single parsed Question and returns the user's answer as a string.
+// If Options is non-empty, return the selected option label (for multi-select, join with ", ").
+// If Options is empty, return the raw user input as-is.
+// The SDK calls this once per question and builds the answers map internally.
+type OnAskUserQuestionFunc func(ctx context.Context, question Question) (string, error)
 
 // --- MCP Server Config ---
 

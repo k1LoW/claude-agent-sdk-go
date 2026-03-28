@@ -283,6 +283,38 @@ func parseHookInput(data map[string]any) HookInput {
 	return input
 }
 
+// parseQuestions converts raw AskUserQuestion input into typed Question slices.
+func parseQuestions(input map[string]any) ([]any, []Question) {
+	questionsRaw, _ := input["questions"].([]any)
+	questions := make([]Question, 0, len(questionsRaw))
+	for _, qr := range questionsRaw {
+		qm, ok := qr.(map[string]any)
+		if !ok {
+			continue
+		}
+		q := Question{
+			Text:        strVal(qm, "question"),
+			Header:      strVal(qm, "header"),
+			MultiSelect: boolVal(qm, "multiSelect"),
+		}
+		if opts, ok := qm["options"].([]any); ok {
+			for _, or := range opts {
+				om, ok := or.(map[string]any)
+				if !ok {
+					continue
+				}
+				q.Options = append(q.Options, QuestionOption{
+					Label:       strVal(om, "label"),
+					Description: strVal(om, "description"),
+					Preview:     strVal(om, "preview"),
+				})
+			}
+		}
+		questions = append(questions, q)
+	}
+	return questionsRaw, questions
+}
+
 // --- helpers ---
 
 func strVal(m map[string]any, key string) string {

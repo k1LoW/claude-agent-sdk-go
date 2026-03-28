@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"sync"
 	"sync/atomic"
 )
@@ -248,20 +249,24 @@ func (cs *controlSession) handleControlRequest(raw map[string]any) {
 }
 
 func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]any, error) {
-	if cs.options.CanUseTool == nil {
-		return nil, fmt.Errorf("canUseTool callback is not provided")
-	}
-
 	toolName, _ := request["tool_name"].(string)
 	input, _ := request["input"].(map[string]any)
 	if input == nil {
 		input = map[string]any{}
 	}
 
+	if toolName == "AskUserQuestion" && cs.options.OnAskUserQuestion != nil {
+		return cs.handleAskUserQuestion(input)
+	}
+
+	if cs.options.OnToolUse == nil {
+		return nil, fmt.Errorf("onToolUse callback is not provided")
+	}
+
 	tctx := ToolPermissionContext{}
 	// TODO: parse permission_suggestions from request
 
-	result, err := cs.options.CanUseTool(cs.ctx, toolName, input, tctx)
+	result, err := cs.options.OnToolUse(cs.ctx, toolName, input, tctx)
 	if err != nil {
 		return nil, err
 	}
@@ -298,6 +303,29 @@ func (cs *controlSession) handleCanUseTool(request map[string]any) (map[string]a
 	default:
 		return nil, fmt.Errorf("unexpected permission result type: %T", result)
 	}
+}
+
+func (cs *controlSession) handleAskUserQuestion(input map[string]any) (map[string]any, error) {
+	questionsRaw, questions := parseQuestions(input)
+
+	answers := make(map[string]string, len(questions))
+	for _, q := range questions {
+		answer, err := cs.options.OnAskUserQuestion(cs.ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		answers[q.Text] = answer
+	}
+
+	updatedInput := make(map[string]any, len(input)+1)
+	maps.Copy(updatedInput, input)
+	updatedInput["questions"] = questionsRaw
+	updatedInput["answers"] = answers
+
+	return map[string]any{
+		"behavior":     "allow",
+		"updatedInput": updatedInput,
+	}, nil
 }
 
 func (cs *controlSession) handleHookCallback(request map[string]any) (map[string]any, error) {
@@ -534,7 +562,7 @@ func (cs *controlSession) sendUserMessage(prompt string, sessionID string) error
 
 // waitForResultAndEndInput waits for the first result then closes stdin.
 func (cs *controlSession) waitForResultAndEndInput() error {
-	needsWait := len(cs.hookCallbacks) > 0 || cs.options.CanUseTool != nil
+	needsWait := len(cs.hookCallbacks) > 0 || cs.options.OnToolUse != nil || cs.options.OnAskUserQuestion != nil
 
 	if needsWait {
 		select {

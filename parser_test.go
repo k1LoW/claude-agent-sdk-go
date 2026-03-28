@@ -522,3 +522,100 @@ func TestParseContentBlocks_AllTypes(t *testing.T) {
 		t.Errorf("blocks[3]: expected *ToolResultBlock, got %T", blocks[3])
 	}
 }
+
+func TestParseQuestions(t *testing.T) {
+	input := map[string]any{
+		"questions": []any{
+			map[string]any{
+				"question":    "Pick a color",
+				"header":      "Color",
+				"multiSelect": true,
+				"options": []any{
+					map[string]any{"label": "red", "description": "Red color", "preview": "<b>red</b>"},
+					map[string]any{"label": "blue", "description": "Blue color"},
+				},
+			},
+			map[string]any{
+				"question": "Pick a font",
+				"header":   "Font",
+			},
+		},
+	}
+
+	raw, questions := parseQuestions(input)
+	if len(raw) != 2 {
+		t.Fatalf("raw length = %d, want 2", len(raw))
+	}
+	if len(questions) != 2 {
+		t.Fatalf("questions length = %d, want 2", len(questions))
+	}
+
+	q0 := questions[0]
+	if q0.Text != "Pick a color" {
+		t.Errorf("q0.Text = %q", q0.Text)
+	}
+	if q0.Header != "Color" {
+		t.Errorf("q0.Header = %q", q0.Header)
+	}
+	if !q0.MultiSelect {
+		t.Error("q0.MultiSelect should be true")
+	}
+	if len(q0.Options) != 2 {
+		t.Fatalf("q0.Options length = %d, want 2", len(q0.Options))
+	}
+	if q0.Options[0].Label != "red" {
+		t.Errorf("q0.Options[0].Label = %q", q0.Options[0].Label)
+	}
+	if q0.Options[0].Preview != "<b>red</b>" {
+		t.Errorf("q0.Options[0].Preview = %q", q0.Options[0].Preview)
+	}
+	if q0.Options[1].Preview != "" {
+		t.Errorf("q0.Options[1].Preview = %q, want empty", q0.Options[1].Preview)
+	}
+
+	q1 := questions[1]
+	if q1.Text != "Pick a font" {
+		t.Errorf("q1.Text = %q", q1.Text)
+	}
+	if q1.MultiSelect {
+		t.Error("q1.MultiSelect should be false")
+	}
+	if len(q1.Options) != 0 {
+		t.Errorf("q1.Options length = %d, want 0", len(q1.Options))
+	}
+}
+
+func TestParseQuestions_Malformed(t *testing.T) {
+	// Missing questions key.
+	raw, questions := parseQuestions(map[string]any{})
+	if len(raw) != 0 || len(questions) != 0 {
+		t.Errorf("expected empty results for missing questions key")
+	}
+
+	// Non-map entries in questions array are skipped.
+	raw, questions = parseQuestions(map[string]any{
+		"questions": []any{"not a map", 42, map[string]any{"question": "valid"}},
+	})
+	if len(raw) != 3 {
+		t.Errorf("raw length = %d, want 3", len(raw))
+	}
+	if len(questions) != 1 {
+		t.Errorf("questions length = %d, want 1", len(questions))
+	}
+
+	// Non-map entries in options are skipped.
+	_, questions = parseQuestions(map[string]any{
+		"questions": []any{
+			map[string]any{
+				"question": "q",
+				"options":  []any{"bad", map[string]any{"label": "good"}},
+			},
+		},
+	})
+	if len(questions) != 1 {
+		t.Fatalf("questions length = %d, want 1", len(questions))
+	}
+	if len(questions[0].Options) != 1 {
+		t.Errorf("options length = %d, want 1", len(questions[0].Options))
+	}
+}

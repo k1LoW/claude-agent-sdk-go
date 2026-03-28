@@ -138,7 +138,31 @@ canUseTool := func(_ context.Context, toolName string, input map[string]any, _ a
 }
 
 for msg, err := range agent.Query(ctx, "Create a file called hello.txt",
-	agent.WithCanUseTool(canUseTool),
+	agent.WithOnToolUse(canUseTool),
+) {
+	// ...
+}
+```
+
+### Answering user questions
+
+``` go
+for msg, err := range agent.Query(ctx, "Help me design a logo",
+	agent.WithOnAskUserQuestion(func(ctx context.Context, q agent.Question) (string, error) {
+		fmt.Printf("%s\n", q.Text)
+		for i, opt := range q.Options {
+			fmt.Printf("  %d) %s - %s\n", i+1, opt.Label, opt.Description)
+		}
+		fmt.Print("> ")
+		var choice int
+		if _, err := fmt.Scanln(&choice); err != nil {
+			return "", err
+		}
+		if choice >= 1 && choice <= len(q.Options) {
+			return q.Options[choice-1].Label, nil
+		}
+		return "", nil
+	}),
 ) {
 	// ...
 }
