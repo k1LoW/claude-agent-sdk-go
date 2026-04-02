@@ -139,6 +139,12 @@ func WithAppendSystemPrompt(s string) Option {
 	return func(o *Options) { o.AppendSystemPrompt = s }
 }
 
+// WithTools sets the base tool set.
+// nil = use default tools, empty slice = no tools.
+func WithTools(tools ...string) Option {
+	return func(o *Options) { o.Tools = tools }
+}
+
 // WithAllowedTools sets the tools to auto-approve.
 func WithAllowedTools(tools ...string) Option {
 	return func(o *Options) { o.AllowedTools = tools }

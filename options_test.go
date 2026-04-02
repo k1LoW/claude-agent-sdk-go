@@ -44,6 +44,16 @@ func TestWithAppendSystemPrompt(t *testing.T) {
 	}
 }
 
+func TestWithTools(t *testing.T) {
+	o := applyOptions([]Option{WithTools("Read", "Write", "Bash")})
+	if len(o.Tools) != 3 {
+		t.Fatalf("Tools length = %d, want 3", len(o.Tools))
+	}
+	if o.Tools[0] != "Read" || o.Tools[1] != "Write" || o.Tools[2] != "Bash" {
+		t.Errorf("Tools = %v", o.Tools)
+	}
+}
+
 func TestWithAllowedTools(t *testing.T) {
 	o := applyOptions([]Option{WithAllowedTools("Read", "Write", "Bash")})
 	if len(o.AllowedTools) != 3 {
