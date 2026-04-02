@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.2.1](https://github.com/k1LoW/claude-agent-sdk-go/compare/v0.2.0...v0.2.1) - 2026-04-02
+- feat: add WithTools functional option for base tool set by @k1LoW in https://github.com/k1LoW/claude-agent-sdk-go/pull/6
+
 ## [v0.2.0](https://github.com/k1LoW/claude-agent-sdk-go/compare/v0.1.0...v0.2.0) - 2026-03-28
 - feat: add WithOnAskUserQuestion and rename WithCanUseTool to WithOnToolUse by @k1LoW in https://github.com/k1LoW/claude-agent-sdk-go/pull/5
 
