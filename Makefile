@@ -21,4 +21,5 @@ depsdev:
 prerelease_for_tagpr: depsdev
 	go mod download
 	gocredits -w .
+	cat _EXTRA_CREDITS >> CREDITS
 	git add CHANGELOG.md CREDITS go.mod go.sum
