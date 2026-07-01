@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.2.2](https://github.com/k1LoW/claude-agent-sdk-go/compare/v0.2.1...v0.2.2) - 2026-04-04
+- chore: add claude-agent-sdk-python license to CREDITS by @k1LoW in https://github.com/k1LoW/claude-agent-sdk-go/pull/8
+
 ## [v0.2.1](https://github.com/k1LoW/claude-agent-sdk-go/compare/v0.2.0...v0.2.1) - 2026-04-02
 - feat: add WithTools functional option for base tool set by @k1LoW in https://github.com/k1LoW/claude-agent-sdk-go/pull/6
 
