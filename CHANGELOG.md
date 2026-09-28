@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.2.3](https://github.com/k1LoW/claude-agent-sdk-go/compare/v0.2.2...v0.2.3) - 2026-09-28
+
+- ci: generate CREDITS with gocredits v1.0.0 from a make target by @k1LoW in https://github.com/k1LoW/claude-agent-sdk-go/pull/10
+
 ## [v0.2.2](https://github.com/k1LoW/claude-agent-sdk-go/compare/v0.2.1...v0.2.2) - 2026-04-04
 - chore: add claude-agent-sdk-python license to CREDITS by @k1LoW in https://github.com/k1LoW/claude-agent-sdk-go/pull/8
 
